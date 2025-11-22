@@ -203,6 +203,15 @@ EOF
 echo -e "${BLUE}[+] Reloading systemd...${NC}"
 sudo systemctl daemon-reload
 
+if command -v ufw &> /dev/null; then
+    echo -e "${BLUE}[+] Opening port 11292 in firewall (ufw)...${NC}"
+    sudo ufw allow 11292/tcp 2>/dev/null || true
+elif command -v firewall-cmd &> /dev/null; then
+    echo -e "${BLUE}[+] Opening port 11292 in firewall (firewalld)...${NC}"
+    sudo firewall-cmd --permanent --add-port=11292/tcp 2>/dev/null || true
+    sudo firewall-cmd --reload 2>/dev/null || true
+fi
+
 echo -e "${BLUE}[+] Enabling service...${NC}"
 sudo systemctl enable reset-password-api-dokploy.service
 
