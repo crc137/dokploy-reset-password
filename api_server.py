@@ -116,7 +116,12 @@ def reset_password():
                     'error': error_msg
                 }), 500
         else:
-            error_msg = result.stderr[:500] if result.stderr else result.stdout[:500]
+            error_output = result.stderr if result.stderr else result.stdout
+            error_msg = error_output[:500] if error_output else "Unknown error"
+            
+            if "No such container" in error_msg:
+                error_msg = f"Error: Failed to reset password\nOutput: {error_msg}"
+            
             logger.error(f"Helper script failed: {error_msg}")
             return jsonify({
                 'success': False,
