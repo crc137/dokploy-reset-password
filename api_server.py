@@ -42,13 +42,22 @@ def check_api_key():
         return True
     
     auth_header = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
-    if auth_header == API_KEY:
-        return True
+    if auth_header:
+        if auth_header == API_KEY:
+            logger.debug(f"API key verified from header")
+            return True
+        else:
+            logger.debug(f"API key mismatch. Received: {auth_header[:10]}..., Expected: {API_KEY[:10]}...")
     
     if request.is_json:
         data = request.get_json() or {}
-        if data.get('api_key') == API_KEY:
-            return True
+        api_key_from_body = data.get('api_key')
+        if api_key_from_body:
+            if api_key_from_body == API_KEY:
+                logger.debug(f"API key verified from body")
+                return True
+            else:
+                logger.debug(f"API key mismatch from body. Received: {api_key_from_body[:10]}...")
     
     return False
 
