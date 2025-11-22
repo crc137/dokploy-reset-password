@@ -54,7 +54,7 @@ if [ ! -f "$SCRIPT_DIR/.env.example" ]; then
     if ! download_file "$GITHUB_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
         echo -e "${YELLOW}[!] .env.example not found on GitHub, creating locally...${NC}"
         cat > "$SCRIPT_DIR/.env.example" << EOF
-API_PORT=
+API_PORT=11292
 API_KEY=
 EOF
     fi

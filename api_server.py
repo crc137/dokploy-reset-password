@@ -12,15 +12,20 @@ from flask_cors import CORS
 
 try:
     from dotenv import load_dotenv
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    env_path = os.path.join(script_dir, '.env')
     if os.path.exists(env_path):
         load_dotenv(dotenv_path=env_path, override=True)
-    elif os.path.exists('env'):
-        load_dotenv(dotenv_path='env', override=True)
+    env_path_alt = os.path.join(script_dir, 'env')
+    if os.path.exists(env_path_alt):
+        load_dotenv(dotenv_path=env_path_alt, override=True)
 except ImportError:
     pass
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -121,7 +126,23 @@ def reset_password():
         }), 500
 
 if __name__ == '__main__':
-    port = int(os.getenv('API_PORT', '11291'))
+    port_str = os.getenv('API_PORT', '').strip()
+    if not port_str:
+        port = 11291
+        logger.info(f"API_PORT not set, using default: {port}")
+    else:
+        try:
+            port = int(port_str)
+        except (ValueError, TypeError):
+            port = 11291
+            logger.warning(f"Invalid API_PORT '{port_str}', using default: {port}")
+    
     if not API_KEY:
         logger.warning("API_KEY not set! API is unprotected. Set API_KEY in .env file or environment variable for security.")
-    app.run(host='0.0.0.0', port=port, debug=False)
+    
+    logger.info(f"Starting API server on 0.0.0.0:{port}")
+    try:
+        app.run(host='0.0.0.0', port=port, debug=False)
+    except Exception as e:
+        logger.error(f"Failed to start server: {e}")
+        raise
