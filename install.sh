@@ -178,7 +178,7 @@ else
         fi
     fi
     if ! grep -q "^API_PORT=" "$SCRIPT_DIR/.env" 2>/dev/null; then
-        echo "API_PORT=11291" >> "$SCRIPT_DIR/.env"
+        echo "API_PORT=11292" >> "$SCRIPT_DIR/.env"
     fi
 fi
 
