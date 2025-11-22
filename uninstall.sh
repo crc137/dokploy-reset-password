@@ -27,6 +27,9 @@ if [ -f "$SERVICE_FILE" ]; then
     sudo systemctl daemon-reload
 fi
 
+echo -e "${YELLOW}[-] Cleaning old logs...${NC}"
+sudo journalctl --vacuum-time=0s -u reset-password-api-dokploy.service 2>/dev/null || true
+
 echo -e "${GREEN}[+] Uninstall complete!${NC}"
-echo -e "${BLUE}[*] Note: Virtual environment and files in ResetPassword directory are not removed.${NC}"
+echo -e "${BLUE}[*] Note: Virtual environment and files in ResetPasswordDeploy directory are not removed.${NC}"
 
