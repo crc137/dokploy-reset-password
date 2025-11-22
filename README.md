@@ -83,7 +83,3 @@ cd /root/ResetPasswordDeploy
 - Docker
 - Access to Dokploy Docker container
 - sudo privileges
-
-## License
-
-MIT © [Coonlink](https://coonlink.com)
