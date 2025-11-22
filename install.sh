@@ -38,10 +38,12 @@ download_file() {
 
 if [ ! -f "$SCRIPT_DIR/api_server.py" ]; then
     download_file "$GITHUB_BASE_URL/api_server.py" "$SCRIPT_DIR/api_server.py" || exit 1
+    chmod +x "$SCRIPT_DIR/api_server.py"
 fi
 
 if [ ! -f "$SCRIPT_DIR/reset-password-helper.sh" ]; then
     download_file "$GITHUB_BASE_URL/reset-password-helper.sh" "$SCRIPT_DIR/reset-password-helper.sh" || exit 1
+    chmod +x "$SCRIPT_DIR/reset-password-helper.sh"
 fi
 
 if [ ! -f "$SCRIPT_DIR/requirements.txt" ]; then
@@ -62,6 +64,8 @@ if [ ! -f "$SCRIPT_DIR/uninstall.sh" ]; then
     download_file "$GITHUB_BASE_URL/uninstall.sh" "$SCRIPT_DIR/uninstall.sh" || exit 1
     chmod +x "$SCRIPT_DIR/uninstall.sh"
 fi
+
+echo -e "${GREEN}[+] All files downloaded and made executable${NC}"
 
 if ! command -v python3 &> /dev/null; then
     echo -e "${RED}[!] Error: python3 is not installed${NC}"
@@ -141,8 +145,6 @@ echo -e "${BLUE}[+] Installing Python dependencies...${NC}"
 ./venv/bin/pip install --upgrade pip
 ./venv/bin/pip install -r requirements.txt
 
-chmod +x reset-password-helper.sh
-chmod +x api_server.py
 
 echo -e "${BLUE}[+] Creating systemd service...${NC}"
 
