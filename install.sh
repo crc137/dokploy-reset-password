@@ -49,7 +49,13 @@ if [ ! -f "$SCRIPT_DIR/requirements.txt" ]; then
 fi
 
 if [ ! -f "$SCRIPT_DIR/.env.example" ]; then
-    download_file "$GITHUB_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example" || exit 1
+    if ! download_file "$GITHUB_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
+        echo -e "${YELLOW}[!] .env.example not found on GitHub, creating locally...${NC}"
+        cat > "$SCRIPT_DIR/.env.example" << EOF
+API_PORT=
+API_KEY=
+EOF
+    fi
 fi
 
 if [ ! -f "$SCRIPT_DIR/uninstall.sh" ]; then
