@@ -83,4 +83,3 @@ cd /root/ResetPasswordDeploy
 - Docker
 - Доступ к Docker контейнеру Dokploy
 - Права sudo
-- 
