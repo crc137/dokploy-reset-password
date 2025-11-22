@@ -23,7 +23,7 @@ except ImportError:
     pass
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ CORS(app)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HELPER_SCRIPT = os.path.join(SCRIPT_DIR, 'reset-password-helper.sh')
 
-API_KEY = os.getenv('API_KEY', '')
+API_KEY = os.getenv('API_KEY', '').strip()
 
 def check_api_key():
     if not API_KEY:
@@ -43,22 +43,26 @@ def check_api_key():
     
     auth_header = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
     if auth_header:
+        logger.info(f"Received API key from header: {auth_header[:20]}... (length: {len(auth_header)})")
+        logger.info(f"Expected API key: {API_KEY[:20]}... (length: {len(API_KEY)})")
         if auth_header == API_KEY:
-            logger.debug(f"API key verified from header")
+            logger.info("API key verified from header")
             return True
         else:
-            logger.debug(f"API key mismatch. Received: {auth_header[:10]}..., Expected: {API_KEY[:10]}...")
+            logger.warning(f"API key mismatch. Received: {auth_header[:20]}..., Expected: {API_KEY[:20]}...")
     
     if request.is_json:
         data = request.get_json() or {}
         api_key_from_body = data.get('api_key')
         if api_key_from_body:
+            logger.info(f"Received API key from body: {api_key_from_body[:20]}... (length: {len(api_key_from_body)})")
             if api_key_from_body == API_KEY:
-                logger.debug(f"API key verified from body")
+                logger.info("API key verified from body")
                 return True
             else:
-                logger.debug(f"API key mismatch from body. Received: {api_key_from_body[:10]}...")
+                logger.warning(f"API key mismatch from body. Received: {api_key_from_body[:20]}...")
     
+    logger.warning("No valid API key found in request")
     return False
 
 @app.route('/api/v1/reset-password', methods=['POST'])
@@ -133,6 +137,24 @@ def reset_password():
             'success': False,
             'error': error_msg
         }), 500
+
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        'service': 'Reset Password API Server for Dokploy',
+        'version': '1.0.0',
+        'endpoints': {
+            '/api/v1/reset-password': {
+                'method': 'POST',
+                'description': 'Reset Dokploy admin password',
+                'required_headers': ['X-API-Key'],
+                'required_body': {
+                    'DOKPLOY_ID_DOCKER': 'Docker container ID'
+                }
+            }
+        },
+        'documentation': 'https://github.com/crc137/dokploy-reset-password'
+    }), 200
 
 if __name__ == '__main__':
     port_str = os.getenv('API_PORT', '').strip()
