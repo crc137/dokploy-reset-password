@@ -17,15 +17,17 @@ echo -e "${BLUE}[*] Installing Reset Password API Server...${NC}"
 
 echo -e "${BLUE}[+] Downloading required files from GitHub...${NC}"
 
-if ! command -v curl &> /dev/null; then
+if ! command -v curl &> /dev/null && [ ! -f /usr/bin/curl ]; then
     echo -e "${RED}[!] Error: curl is not installed${NC}"
     exit 1
 fi
 
+CURL_CMD=$(command -v curl || echo "/usr/bin/curl")
+
 download_file() {
     local url="$1"
     local output="$2"
-    if curl -sSLf "$url" -o "$output"; then
+    if $CURL_CMD -sSLf "$url" -o "$output"; then
         echo -e "${GREEN}[+] Downloaded: $(basename $output)${NC}"
         return 0
     else
