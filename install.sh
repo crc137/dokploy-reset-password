@@ -215,7 +215,7 @@ sudo systemctl status reset-password-api-dokploy.service --no-pager
 
 echo ""
 echo -e "${GREEN}[+] Installation complete!${NC}"
-echo -e "${GREEN}[+] API Server is running on http://0.0.0.0:11291${NC}"
+echo -e "${GREEN}[+] API Server is running on http://0.0.0.0:11292${NC}"
 echo ""
 if [ -n "$API_KEY" ]; then
     echo -e "${BLUE}[*] API Key: ${NC}$API_KEY"
@@ -224,7 +224,7 @@ if [ -n "$API_KEY" ]; then
     echo -e "${GREEN}DOKPLOY_RESET_API_KEY=$API_KEY${NC}"
     echo ""
     echo -e "${BLUE}[*] Test with:${NC}"
-    echo "curl -X POST http://localhost:11291/api/v1/reset-password \\"
+    echo "curl -X POST http://localhost:11292/api/v1/reset-password \\"
     echo "  -H 'Content-Type: application/json' \\"
     echo "  -H 'X-API-Key: $API_KEY' \\"
     echo "  -d '{\"DOKPLOY_ID_DOCKER\": \"your-container-id\"}'"
@@ -232,7 +232,7 @@ else
     echo -e "${RED}[!] API_KEY not set - API is unprotected!${NC}"
     echo -e "${YELLOW}[!] Set it manually in .env file or set environment variable.${NC}"
     echo ""
-    echo -e "${BLUE}[*] Test with:${NC} curl -X POST http://localhost:11291/api/v1/reset-password -H 'Content-Type: application/json' -d '{\"DOKPLOY_ID_DOCKER\": \"your-container-id\"}'"
+    echo -e "${BLUE}[*] Test with:${NC} curl -X POST http://localhost:11292/api/v1/reset-password -H 'Content-Type: application/json' -d '{\"DOKPLOY_ID_DOCKER\": \"your-container-id\"}'"
 fi
 echo ""
 echo -e "${BLUE}[*] To check logs:${NC} sudo journalctl -u reset-password-api-dokploy -f"
