@@ -6,6 +6,8 @@ BLUE="\033[0;34m"
 RED="\033[0;31m"
 NC="\033[0m"
 
+VERSION="1.1.13"
+
 SCRIPT_DIR="/root/ResetPasswordDeploy"
 RAW_BASE_URL="https://raw.coonlink.com/cloud/dokploy-reset-password"
 
@@ -13,7 +15,7 @@ mkdir -p "$SCRIPT_DIR"
 chmod 777 "$SCRIPT_DIR"
 cd "$SCRIPT_DIR"
 
-echo -e "${BLUE}[*] Installing Reset Password API Server...${NC}"
+echo -e "${BLUE}[*] Installing Reset Password API Server (version ${GREEN}${VERSION}${BLUE})...${NC}"
 
 echo -e "${BLUE}[+] Downloading required files from RAW.COONLINK.COM..${NC}"
 
@@ -36,34 +38,37 @@ download_file() {
     fi
 }
 
-if [ ! -f "$SCRIPT_DIR/api_server.py" ]; then
-    download_file "$RAW_BASE_URL/api_server.py" "$SCRIPT_DIR/api_server.py" || exit 1
-    chmod +x "$SCRIPT_DIR/api_server.py"
-fi
+download_file "$RAW_BASE_URL/api_server.py" "$SCRIPT_DIR/api_server.py" || exit 1
+chmod +x "$SCRIPT_DIR/api_server.py"
 
-if [ ! -f "$SCRIPT_DIR/reset-password-helper.sh" ]; then
-    download_file "$RAW_BASE_URL/reset-password-helper.sh" "$SCRIPT_DIR/reset-password-helper.sh" || exit 1
-    chmod +x "$SCRIPT_DIR/reset-password-helper.sh"
-fi
+download_file "$RAW_BASE_URL/reset-password-helper.sh" "$SCRIPT_DIR/reset-password-helper.sh" || exit 1
+chmod +x "$SCRIPT_DIR/reset-password-helper.sh"
 
-if [ ! -f "$SCRIPT_DIR/requirements.txt" ]; then
-    download_file "$RAW_BASE_URL/requirements.txt" "$SCRIPT_DIR/requirements.txt" || exit 1
-fi
+download_file "$RAW_BASE_URL/requirements.txt" "$SCRIPT_DIR/requirements.txt" || exit 1
 
-if [ ! -f "$SCRIPT_DIR/.env.example" ]; then
-    if ! download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
-        echo -e "${YELLOW}[!] .env.example not found on RAW.COONLINK.COM, creating locally...${NC}"
-        cat > "$SCRIPT_DIR/.env.example" << EOF
+if ! download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
+    echo -e "${YELLOW}[!] .env.example not found on RAW.COONLINK.COM, creating locally...${NC}"
+    cat > "$SCRIPT_DIR/.env.example" << EOF
 API_PORT=11292
 API_KEY=
 AUTO_MODE=
+AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
+TG_TOKEN=
+TG_ADMIN=
 EOF
-    fi
 fi
 
-if [ ! -f "$SCRIPT_DIR/uninstall.sh" ]; then
-    download_file "$RAW_BASE_URL/uninstall.sh" "$SCRIPT_DIR/uninstall.sh" || exit 1
-    chmod +x "$SCRIPT_DIR/uninstall.sh"
+download_file "$RAW_BASE_URL/uninstall.sh" "$SCRIPT_DIR/uninstall.sh" || exit 1
+chmod +x "$SCRIPT_DIR/uninstall.sh"
+
+download_file "$RAW_BASE_URL/update.sh" "$SCRIPT_DIR/update.sh" || exit 1
+chmod +x "$SCRIPT_DIR/update.sh"
+
+if [ -f "$0" ] && [ "$0" != "$SCRIPT_DIR/install.sh" ]; then
+    if [ -r "$0" ]; then
+        cp "$0" "$SCRIPT_DIR/install.sh" 2>/dev/null || true
+        chmod +x "$SCRIPT_DIR/install.sh" 2>/dev/null || true
+    fi
 fi
 
 echo -e "${GREEN}[+] All files downloaded and made executable${NC}"
@@ -169,6 +174,11 @@ if [ ! -f "$SCRIPT_DIR/.env" ]; then
     if [ -n "$API_KEY" ]; then
         sed -i "s/^API_KEY=$/API_KEY=${API_KEY}/" "$SCRIPT_DIR/.env"
     fi
+    if ! grep -q "^API_PORT=" "$SCRIPT_DIR/.env" 2>/dev/null; then
+        echo "API_PORT=11292" >> "$SCRIPT_DIR/.env"
+    else
+        sed -i "s/^API_PORT=.*/API_PORT=11292/" "$SCRIPT_DIR/.env"
+    fi
     echo -e "${GREEN}[+] .env file created at $SCRIPT_DIR/.env${NC}"
 else
     if [ -n "$API_KEY" ]; then
@@ -180,6 +190,17 @@ else
     fi
     if ! grep -q "^API_PORT=" "$SCRIPT_DIR/.env" 2>/dev/null; then
         echo "API_PORT=11292" >> "$SCRIPT_DIR/.env"
+    else
+        sed -i "s/^API_PORT=.*/API_PORT=11292/" "$SCRIPT_DIR/.env"
+    fi
+fi
+
+if ! grep -q "^API_PORT=11292" "$SCRIPT_DIR/.env" 2>/dev/null; then
+    echo -e "${YELLOW}[!] Warning: API_PORT not set to 11292, fixing...${NC}"
+    if ! grep -q "^API_PORT=" "$SCRIPT_DIR/.env" 2>/dev/null; then
+        echo "API_PORT=11292" >> "$SCRIPT_DIR/.env"
+    else
+        sed -i "s/^API_PORT=.*/API_PORT=11292/" "$SCRIPT_DIR/.env"
     fi
 fi
 
@@ -203,6 +224,12 @@ EOF
 
 echo -e "${BLUE}[+] Reloading systemd...${NC}"
 sudo systemctl daemon-reload
+
+if systemctl is-active --quiet reset-password-api-dokploy.service 2>/dev/null; then
+    echo -e "${BLUE}[+] Restarting service to apply .env changes...${NC}"
+    sudo systemctl restart reset-password-api-dokploy.service
+    sleep 2
+fi
 
 echo -e "${BLUE}[+] Opening port 11292 in firewall...${NC}"
 if command -v ufw &> /dev/null; then
@@ -254,6 +281,20 @@ elif command -v ss &> /dev/null; then
             echo -e "${GREEN}[+] Port 11292 is now listening${NC}"
         else
             echo -e "${RED}[!] Port 11292 is still not listening${NC}"
+            echo -e "${YELLOW}[!] Checking service logs for port configuration...${NC}"
+            if sudo journalctl -u reset-password-api-dokploy -n 10 --no-pager | grep -q "11291"; then
+                echo -e "${RED}[!] ERROR: Service is running on port 11291 instead of 11292!${NC}"
+                echo -e "${YELLOW}[!] Checking .env file...${NC}"
+                if [ -f "$SCRIPT_DIR/.env" ]; then
+                    echo -e "${BLUE}[*] Current .env API_PORT setting:${NC}"
+                    grep "^API_PORT=" "$SCRIPT_DIR/.env" || echo "API_PORT not found in .env"
+                    echo -e "${BLUE}[*] Fixing .env file...${NC}"
+                    sed -i "s/^API_PORT=.*/API_PORT=11292/" "$SCRIPT_DIR/.env"
+                    echo -e "${BLUE}[*] Restarting service...${NC}"
+                    sudo systemctl restart reset-password-api-dokploy.service
+                    sleep 3
+                fi
+            fi
         fi
     fi
 fi
@@ -273,7 +314,7 @@ sudo systemctl status reset-password-api-dokploy.service --no-pager
 
 echo ""
 echo -e "${GREEN}[+] Installation complete!${NC}"
-echo -e "${GREEN}[+] API Server is running on http://0.0.0.0:11292${NC}"
+echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://0.0.0.0:11292${NC}"
 echo ""
 echo -e "${BLUE}[*] To test from external IP, use:${NC}"
 echo -e "${BLUE}    curl http://$(hostname -I | awk '{print $1}'):11292${NC}"
@@ -296,6 +337,21 @@ else
     echo -e "${BLUE}[*] Test with:${NC} curl -X POST http://localhost:11292/api/v1/reset-password -H 'Content-Type: application/json' -d '{\"DOKPLOY_ID_DOCKER\": \"your-container-id\"}'"
 fi
 echo ""
+echo -e "${BLUE}[*] Version:${NC} $VERSION"
+
+echo -e "${BLUE}[+] Setting up daily update check...${NC}"
+CRON_JOB="0 2 * * * $SCRIPT_DIR/update.sh >> $SCRIPT_DIR/update.log 2>&1"
+(crontab -l 2>/dev/null | grep -v "$SCRIPT_DIR/update.sh"; echo "$CRON_JOB") | crontab -
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}[+] Daily update check scheduled (runs at 2:00 AM daily)${NC}"
+else
+    echo -e "${YELLOW}[!] Warning: Failed to set up cron job. You can manually add:${NC}"
+    echo -e "${BLUE}    $CRON_JOB${NC}"
+fi
+
+echo ""
 echo -e "${BLUE}[*] To check logs:${NC} sudo journalctl -u reset-password-api-dokploy -f"
+echo -e "${BLUE}[*] To check update logs:${NC} tail -f $SCRIPT_DIR/update.log"
+echo -e "${BLUE}[*] To manually check for updates:${NC} $SCRIPT_DIR/update.sh"
 echo -e "${BLUE}[*] To stop:${NC} sudo systemctl stop reset-password-api-dokploy"
 echo -e "${BLUE}[*] To start:${NC} sudo systemctl start reset-password-api-dokploy"

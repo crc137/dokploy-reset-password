@@ -233,7 +233,7 @@ def reset_password():
 def index():
     return jsonify({
         'service': 'Reset Password API Server for Dokploy',
-        'version': '1.1.0',
+        'version': '1.1.13',
         'endpoints': {
             '/api/v1/reset-password': {
                 'method': 'POST',

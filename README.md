@@ -10,7 +10,7 @@
 <img alt="last-commit" src="https://img.shields.io/github/last-commit/crc137/dokploy-reset-password?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-top-language" src="https://img.shields.io/github/languages/top/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-language-count" src="https://img.shields.io/github/languages/count/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
-<img alt="version" src="https://img.shields.io/badge/version-1.1.0-blue" style="margin: 0px 2px;">
+<img alt="version" src="https://img.shields.io/badge/version-1.1.13-blue" style="margin: 0px 2px;">
 </div>
 
 <br />
@@ -23,7 +23,7 @@
 ## Install
 
 ```bash
-curl -sSL https://crc137.github.io/dokploy-reset-password/install.sh | bash
+curl -sSL https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh | bash
 ```
 
 > [!WARNING]  
@@ -45,6 +45,17 @@ API_PORT=11292
 # true - automatically find Dokploy container
 # false - manual mode (requires container_id in request)
 AUTO_MODE=false
+
+# Automatic updates check
+# true - automatically install new updates when available
+# false - only send Telegram notification about new updates (manual installation required)
+AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
+
+# Telegram notifications (optional)
+# TG_TOKEN - Telegram bot token for update notifications
+# TG_ADMIN - Telegram chat ID for receiving notifications
+TG_TOKEN=
+TG_ADMIN=
 ```
 
 Edit `.env` and restart the service to apply changes:
@@ -120,8 +131,30 @@ sudo systemctl status reset-password-api-dokploy
 # View logs
 sudo journalctl -u reset-password-api-dokploy -f
 
+# View update logs
+tail -f /root/ResetPasswordDeploy/update.log
+
 # Restart
 sudo systemctl restart reset-password-api-dokploy
+```
+
+## Automatic Updates
+
+The system includes an automatic update mechanism that checks for new versions daily at 2:00 AM.
+
+### Update Configuration
+
+- **AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=true**: Automatically installs new updates when available
+- **AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false**: Only sends Telegram notification (requires manual installation)
+
+### Manual Update Check
+
+```bash
+# Check for updates manually
+/root/ResetPasswordDeploy/update.sh
+
+# View update logs
+tail -f /root/ResetPasswordDeploy/update.log
 ```
 
 ## Uninstall

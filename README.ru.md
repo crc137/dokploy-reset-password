@@ -10,7 +10,7 @@
 <img alt="last-commit" src="https://img.shields.io/github/last-commit/crc137/dokploy-reset-password?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-top-language" src="https://img.shields.io/github/languages/top/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-language-count" src="https://img.shields.io/github/languages/count/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
-<img alt="version" src="https://img.shields.io/badge/version-1.1.0-blue" style="margin: 0px 2px;">
+<img alt="version" src="https://img.shields.io/badge/version-1.1.13-blue" style="margin: 0px 2px;">
 </div>
 
 <br />
@@ -23,7 +23,7 @@
 ## Установка
 
 ```bash
-curl -sSL https://crc137.github.io/dokploy-reset-password/install.sh | bash
+curl -sSL https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh | bash
 ```
 
 > [!WARNING]  
@@ -45,6 +45,17 @@ API_PORT=11292
 # true - автоматический поиск контейнера Dokploy
 # false - ручной режим (требуется указать container_id в запросе)
 AUTO_MODE=false
+
+# Автоматическая проверка обновлений
+# true - автоматически устанавливать новые обновления при их наличии
+# false - только отправлять уведомление в Telegram о новых обновлениях (требуется ручная установка)
+AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
+
+# Уведомления Telegram (опционально)
+# TG_TOKEN - токен Telegram бота для уведомлений об обновлениях
+# TG_ADMIN - ID чата Telegram для получения уведомлений
+TG_TOKEN=
+TG_ADMIN=
 ```
 
 Отредактируйте `.env` и перезапустите сервис для применения изменений:
@@ -120,8 +131,30 @@ sudo systemctl status reset-password-api-dokploy
 # Просмотр логов
 sudo journalctl -u reset-password-api-dokploy -f
 
+# Просмотр логов обновлений
+tail -f /root/ResetPasswordDeploy/update.log
+
 # Перезапуск
 sudo systemctl restart reset-password-api-dokploy
+```
+
+## Автоматические обновления
+
+Система включает механизм автоматических обновлений, который проверяет наличие новых версий ежедневно в 2:00 ночи.
+
+### Настройка обновлений
+
+- **AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=true**: Автоматически устанавливает новые обновления при их наличии
+- **AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false**: Только отправляет уведомление в Telegram (требуется ручная установка)
+
+### Ручная проверка обновлений
+
+```bash
+# Проверить наличие обновлений вручную
+/root/ResetPasswordDeploy/update.sh
+
+# Просмотр логов обновлений
+tail -f /root/ResetPasswordDeploy/update.log
 ```
 
 ## Удаление
