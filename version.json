@@ -1,0 +1,48 @@
+{
+    "install_new_version": "1.1.15",
+    "install_sh_sha256": "b904009264d02add0be4fba852a6a8c7eda524717a1627882b4629230679cfc2",
+    "changelog": [
+      {
+        "version": "1.1.15",
+        "date": "2025-11-24",
+        "changes": [
+          "Added centralized configuration file (config.sh) for common settings",
+          "Improved configuration management across all scripts",
+          "Centralized version management in config.sh"
+        ]
+      },
+      {
+        "version": "1.1.14",
+        "date": "2025-11-24",
+        "changes": [
+          "Test version for update system verification"
+        ]
+      },
+      {
+        "version": "1.1.13",
+        "date": "2025-11-24",
+        "changes": [
+          "Added automatic update system with version checking",
+          "Added update.sh script for checking and installing new versions",
+          "Added support for AUTOMATICALLY_CHECK_FOR_NEW_UPDATES in .env file",
+          "Added Telegram notifications for new version availability",
+          "Added daily update check via cron job (runs at 2:00 AM)",
+          "Added clean installation process during updates (removes old files)",
+          "Added changelog display in logs and Telegram notifications",
+          "Improved version comparison and update logic",
+          "Added .env file backup and restore during updates",
+          "Fixed API_PORT configuration to always use 11292",
+          "Added backup of previous version before update (saved to /tmp/reset-password-backup-*)",
+          "Added aggressive file cleanup during updates (removes all old files and directories)",
+          "Added download verification (checks file size and validates install script)",
+          "Added detailed logging with timestamps for update process",
+          "Improved error handling and recovery during updates",
+          "Added SHA256 hash verification for install.sh file integrity check",
+          "Added retry mechanism for downloads (3 attempts with exponential backoff)",
+          "Added installation verification (checks service status and port availability)",
+          "Added automatic hash comparison against server-provided SHA256 hash",
+          "Enhanced security with file integrity verification before installation"
+        ]
+      }
+    ]
+  }  

@@ -266,13 +266,13 @@ def index():
 if __name__ == '__main__':
     port_str = os.getenv('API_PORT', '').strip()
     if not port_str:
-        port = 11291
+        port = 11292
         logger.info(f"API_PORT not set, using default: {port}")
     else:
         try:
             port = int(port_str)
         except (ValueError, TypeError):
-            port = 11291
+            port = 11292
             logger.warning(f"Invalid API_PORT '{port_str}', using default: {port}")
     
     if not API_KEY:

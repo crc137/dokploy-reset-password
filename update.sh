@@ -1,15 +1,23 @@
 #!/bin/bash
 
-GREEN="\033[0;32m"
-YELLOW="\033[1;33m"
-BLUE="\033[0;34m"
-RED="\033[0;31m"
-NC="\033[0m"
-
-SCRIPT_DIR="/root/ResetPasswordDeploy"
-VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version.json"
-INSTALL_SCRIPT_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh"
-LOG_FILE="$SCRIPT_DIR/update.log"
+SCRIPT_DIR_THIS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR_THIS/config.sh" ]; then
+    source "$SCRIPT_DIR_THIS/config.sh"
+elif [ -f "/root/ResetPasswordDeploy/config.sh" ]; then
+    source "/root/ResetPasswordDeploy/config.sh"
+else
+    SCRIPT_DIR="/root/ResetPasswordDeploy"
+    VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version.json"
+    INSTALL_SCRIPT_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh"
+    LOG_FILE="$SCRIPT_DIR/update.log"
+    API_PORT="11292"
+    SERVICE_NAME="reset-password-api-dokploy"
+    GREEN="\033[0;32m"
+    YELLOW="\033[1;33m"
+    BLUE="\033[0;34m"
+    RED="\033[0;31m"
+    NC="\033[0m"
+fi
 
 log_message() {
     local level="$1"
@@ -44,7 +52,7 @@ get_current_version() {
         fi
     fi
     
-    echo "1.1.13"
+    echo "$VERSION"
 }
 
 version_compare() {
@@ -261,9 +269,17 @@ New version: <code>$new_version</code>
 #!/bin/bash
 
 SCRIPT_DIR="/root/ResetPasswordDeploy"
-INSTALL_SCRIPT_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh"
+
+if [ -f "$SCRIPT_DIR/config.sh" ]; then
+    source "$SCRIPT_DIR/config.sh"
+else
+    INSTALL_SCRIPT_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh"
+    VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version.json"
+    API_PORT="11292"
+    SERVICE_NAME="reset-password-api-dokploy"
+fi
+
 VERSION_FILE="$version_file_for_update"
-VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version.json"
 ENV_BACKUP="/tmp/.env.backup.$$"
 BACKUP_DIR="/tmp/reset-password-backup-$(date +%Y%m%d-%H%M%S)"
 TEMP_SCRIPT_SELF="/tmp/update_clean_install.sh"
@@ -290,12 +306,12 @@ log_step "=== Starting clean update process ==="
 echo "=========================================="
 
 log_step "[1/8] Stopping service..."
-if systemctl is-active --quiet reset-password-api-dokploy.service 2>/dev/null; then
-    sudo systemctl stop reset-password-api-dokploy.service || true
+if systemctl is-active --quiet ${SERVICE_NAME}.service 2>/dev/null; then
+    sudo systemctl stop ${SERVICE_NAME}.service || true
     sleep 2
-    if systemctl is-active --quiet reset-password-api-dokploy.service 2>/dev/null; then
+    if systemctl is-active --quiet ${SERVICE_NAME}.service 2>/dev/null; then
         log_error "Failed to stop service, forcing stop..."
-        sudo systemctl kill -s KILL reset-password-api-dokploy.service 2>/dev/null || true
+        sudo systemctl kill -s KILL ${SERVICE_NAME}.service 2>/dev/null || true
     fi
     log_success "Service stopped"
 else
@@ -415,7 +431,7 @@ verify_installation() {
     log_info "Verifying installation..."
     
     sleep 3
-    if systemctl is-active --quiet reset-password-api-dokploy.service 2>/dev/null; then
+    if systemctl is-active --quiet ${SERVICE_NAME}.service 2>/dev/null; then
         log_success "Service is running"
     else
         log_error "Service is not running"
@@ -424,12 +440,12 @@ verify_installation() {
     
     while [ $wait_time -lt $max_wait ]; do
         if command -v netstat &> /dev/null; then
-            if netstat -tuln 2>/dev/null | grep -q ":11292 "; then
+            if netstat -tuln 2>/dev/null | grep -q ":${API_PORT} "; then
                 log_success "Port 11292 is listening"
                 return 0
             fi
         elif command -v ss &> /dev/null; then
-            if ss -tuln 2>/dev/null | grep -q ":11292 "; then
+            if ss -tuln 2>/dev/null | grep -q ":${API_PORT} "; then
                 log_success "Port 11292 is listening"
                 return 0
             fi
