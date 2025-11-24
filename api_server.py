@@ -35,6 +35,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HELPER_SCRIPT = os.path.join(SCRIPT_DIR, 'reset-password-helper.sh')
 
 API_KEY = os.getenv('API_KEY', '').strip()
+AUTO_MODE = os.getenv('AUTO_MODE', 'false').strip().lower() in ('true', '1', 'yes', 'on')
 
 def check_api_key():
     if not API_KEY:
@@ -65,6 +66,60 @@ def check_api_key():
     logger.warning("No valid API key found in request")
     return False
 
+def find_dokploy_container():
+    try:
+        result = subprocess.run(
+            ['docker', 'ps', '--format', '{{.ID}}\t{{.Image}}\t{{.Names}}'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"Failed to list containers: {result.stderr}")
+            return None
+        
+        lines = result.stdout.strip().split('\n')
+        if not lines or lines == ['']:
+            logger.warning("No running containers found")
+            return None
+        
+        for line in lines:
+            if not line.strip():
+                continue
+            parts = line.split('\t')
+            if len(parts) >= 3:
+                container_id = parts[0].strip()
+                image = parts[1].strip()
+                names = parts[2].strip()
+
+                if 'dokploy/dokploy' in image.lower():
+                    logger.info(f"Found Dokploy container by image: ID={container_id}, Image={image}, Names={names}")
+                    return container_id
+        
+        for line in lines:
+            if not line.strip():
+                continue
+            parts = line.split('\t')
+            if len(parts) >= 3:
+                container_id = parts[0].strip()
+                image = parts[1].strip()
+                names = parts[2].strip()
+                
+                if names.lower().startswith('dokploy.') or names.lower() == 'dokploy':
+                    logger.info(f"Found Dokploy container by name: ID={container_id}, Image={image}, Names={names}")
+                    return container_id
+        
+        logger.warning("Dokploy container not found in running containers")
+        return None
+        
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout while searching for Dokploy container")
+        return None
+    except Exception as e:
+        logger.error(f"Error searching for Dokploy container: {e}")
+        return None
+
 @app.route('/api/v1/reset-password', methods=['POST'])
 def reset_password():
     if not check_api_key():
@@ -80,14 +135,43 @@ def reset_password():
         }), 401
     
     try:
-        data = request.get_json()
-        container_id = data.get('DOKPLOY_ID_DOCKER') or data.get('container_id')
+        data = request.get_json() or {}
         
-        if not container_id:
-            return jsonify({
-                'success': False,
-                'error': 'DOKPLOY_ID_DOCKER or container_id is required'
-            }), 400
+        has_container_id = bool(data.get('DOKPLOY_ID_DOCKER') or data.get('container_id'))
+        
+        has_explicit_mode = 'auto_mode' in data or 'mode' in data
+        
+        if has_explicit_mode:
+            auto_mode = data.get('auto_mode', 'false').lower() in ('true', '1', 'yes', 'on')
+            mode = data.get('mode', '').lower()
+            if mode == 'auto':
+                auto_mode = True
+            elif mode == 'manual':
+                auto_mode = False
+        elif has_container_id:
+            auto_mode = False
+        else:
+            auto_mode = AUTO_MODE
+        
+        container_id = None
+        
+        if auto_mode:
+            logger.info("Auto mode: searching for Dokploy container...")
+            container_id = find_dokploy_container()
+            if not container_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'Dokploy container not found. Make sure Dokploy container is running or use manual mode with container_id.'
+                }), 404
+            logger.info(f"Auto mode: found container {container_id}")
+        else:
+            container_id = data.get('DOKPLOY_ID_DOCKER') or data.get('container_id')
+            if not container_id:
+                return jsonify({
+                    'success': False,
+                    'error': 'container_id or DOKPLOY_ID_DOCKER is required in manual mode. Use auto_mode=true for automatic search.'
+                }), 400
+            logger.info(f"Manual mode: using container {container_id}")
         
         logger.info(f"Resetting password for container: {container_id}")
         
@@ -106,7 +190,9 @@ def reset_password():
                 logger.info("Password reset successful")
                 return jsonify({
                     'success': True,
-                    'password': password
+                    'password': password,
+                    'container_id': container_id,
+                    'mode': 'auto' if auto_mode else 'manual'
                 }), 200
             else:
                 error_msg = f"Could not parse password from output: {output[:200]}"
@@ -153,8 +239,24 @@ def index():
                 'method': 'POST',
                 'description': 'Reset Dokploy admin password',
                 'required_headers': ['X-API-Key'],
-                'required_body': {
-                    'DOKPLOY_ID_DOCKER': 'Docker container ID'
+                'body_options': {
+                    'manual_mode': {
+                        'container_id': 'Docker container ID (required in manual mode)',
+                        'DOKPLOY_ID_DOCKER': 'Alternative field name for container ID'
+                    },
+                    'auto_mode': {
+                        'auto_mode': 'true/false - Enable automatic container search',
+                        'mode': 'auto/manual - Set operation mode'
+                    },
+                    'note': 'If auto_mode is not specified, uses AUTO_MODE from .env file'
+                },
+                'examples': {
+                    'manual': {
+                        'container_id': '9edaf0cc317c'
+                    },
+                    'auto': {
+                        'auto_mode': True
+                    }
                 }
             }
         },

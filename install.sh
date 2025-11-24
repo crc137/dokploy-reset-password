@@ -7,7 +7,7 @@ RED="\033[0;31m"
 NC="\033[0m"
 
 SCRIPT_DIR="/root/ResetPasswordDeploy"
-GITHUB_BASE_URL="https://crc137.github.io/dokploy-reset-password"
+GITHUB_BASE_URL="https://raw.coonlink.com/cloud/dokploy-reset-password"
 
 mkdir -p "$SCRIPT_DIR"
 chmod 777 "$SCRIPT_DIR"
