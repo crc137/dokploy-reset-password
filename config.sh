@@ -7,7 +7,7 @@ RAW_BASE_URL="https://raw.coonlink.com/cloud/dokploy-reset-password"
 VERSION_URL="${RAW_BASE_URL}/version.json"
 INSTALL_SCRIPT_URL="${RAW_BASE_URL}/install.sh"
 
-VERSION="1.1.15"
+VERSION="1.1.18"
 
 API_PORT="11292"
 SERVICE_NAME="reset-password-api-dokploy"
