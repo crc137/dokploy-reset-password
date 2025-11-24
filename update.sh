@@ -7,7 +7,7 @@ RED="\033[0;31m"
 NC="\033[0m"
 
 SCRIPT_DIR="/root/ResetPasswordDeploy"
-VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version-dokploy-reset-password.json"
+VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version.json"
 INSTALL_SCRIPT_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh"
 LOG_FILE="$SCRIPT_DIR/update.log"
 
@@ -169,7 +169,7 @@ check_for_updates() {
     local current_version=$(get_current_version)
     log_message "INFO" "Current version: $current_version"
     
-    local version_file="/tmp/version-dokploy-reset-password.json"
+    local version_file="/tmp/version.json"
     if ! curl -sSLf "$VERSION_URL" -o "$version_file"; then
         log_message "ERROR" "Failed to download version file from $VERSION_URL"
         return 1
@@ -263,7 +263,7 @@ New version: <code>$new_version</code>
 SCRIPT_DIR="/root/ResetPasswordDeploy"
 INSTALL_SCRIPT_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/install.sh"
 VERSION_FILE="$version_file_for_update"
-VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version-dokploy-reset-password.json"
+VERSION_URL="https://raw.coonlink.com/cloud/dokploy-reset-password/version.json"
 ENV_BACKUP="/tmp/.env.backup.$$"
 BACKUP_DIR="/tmp/reset-password-backup-$(date +%Y%m%d-%H%M%S)"
 TEMP_SCRIPT_SELF="/tmp/update_clean_install.sh"
