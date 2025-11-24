@@ -56,6 +56,7 @@ if [ ! -f "$SCRIPT_DIR/.env.example" ]; then
         cat > "$SCRIPT_DIR/.env.example" << EOF
 API_PORT=11292
 API_KEY=
+AUTO_MODE=
 EOF
     fi
 fi
