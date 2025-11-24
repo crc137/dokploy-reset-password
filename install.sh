@@ -7,7 +7,7 @@ RED="\033[0;31m"
 NC="\033[0m"
 
 SCRIPT_DIR="/root/ResetPasswordDeploy"
-GITHUB_BASE_URL="https://raw.coonlink.com/cloud/dokploy-reset-password"
+RAW_BASE_URL="https://raw.coonlink.com/cloud/dokploy-reset-password"
 
 mkdir -p "$SCRIPT_DIR"
 chmod 777 "$SCRIPT_DIR"
@@ -15,7 +15,7 @@ cd "$SCRIPT_DIR"
 
 echo -e "${BLUE}[*] Installing Reset Password API Server...${NC}"
 
-echo -e "${BLUE}[+] Downloading required files from GitHub...${NC}"
+echo -e "${BLUE}[+] Downloading required files from RAW.COONLINK.COM..${NC}"
 
 if ! command -v curl &> /dev/null && [ ! -f /usr/bin/curl ]; then
     echo -e "${RED}[!] Error: curl is not installed${NC}"
@@ -37,22 +37,22 @@ download_file() {
 }
 
 if [ ! -f "$SCRIPT_DIR/api_server.py" ]; then
-    download_file "$GITHUB_BASE_URL/api_server.py" "$SCRIPT_DIR/api_server.py" || exit 1
+    download_file "$RAW_BASE_URL/api_server.py" "$SCRIPT_DIR/api_server.py" || exit 1
     chmod +x "$SCRIPT_DIR/api_server.py"
 fi
 
 if [ ! -f "$SCRIPT_DIR/reset-password-helper.sh" ]; then
-    download_file "$GITHUB_BASE_URL/reset-password-helper.sh" "$SCRIPT_DIR/reset-password-helper.sh" || exit 1
+    download_file "$RAW_BASE_URL/reset-password-helper.sh" "$SCRIPT_DIR/reset-password-helper.sh" || exit 1
     chmod +x "$SCRIPT_DIR/reset-password-helper.sh"
 fi
 
 if [ ! -f "$SCRIPT_DIR/requirements.txt" ]; then
-    download_file "$GITHUB_BASE_URL/requirements.txt" "$SCRIPT_DIR/requirements.txt" || exit 1
+    download_file "$RAW_BASE_URL/requirements.txt" "$SCRIPT_DIR/requirements.txt" || exit 1
 fi
 
 if [ ! -f "$SCRIPT_DIR/.env.example" ]; then
-    if ! download_file "$GITHUB_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
-        echo -e "${YELLOW}[!] .env.example not found on GitHub, creating locally...${NC}"
+    if ! download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
+        echo -e "${YELLOW}[!] .env.example not found on RAW.COONLINK.COM, creating locally...${NC}"
         cat > "$SCRIPT_DIR/.env.example" << EOF
 API_PORT=11292
 API_KEY=
@@ -62,7 +62,7 @@ EOF
 fi
 
 if [ ! -f "$SCRIPT_DIR/uninstall.sh" ]; then
-    download_file "$GITHUB_BASE_URL/uninstall.sh" "$SCRIPT_DIR/uninstall.sh" || exit 1
+    download_file "$RAW_BASE_URL/uninstall.sh" "$SCRIPT_DIR/uninstall.sh" || exit 1
     chmod +x "$SCRIPT_DIR/uninstall.sh"
 fi
 
@@ -204,9 +204,11 @@ EOF
 echo -e "${BLUE}[+] Reloading systemd...${NC}"
 sudo systemctl daemon-reload
 
+echo -e "${BLUE}[+] Opening port 11292 in firewall...${NC}"
 if command -v ufw &> /dev/null; then
     echo -e "${BLUE}[+] Opening port 11292 in firewall (ufw)...${NC}"
-    sudo ufw allow 11292/tcp 2>/dev/null || true
+    sudo ufw allow 11292/tcp
+    sudo ufw reload 2>/dev/null || true
 elif command -v firewall-cmd &> /dev/null; then
     echo -e "${BLUE}[+] Opening port 11292 in firewall (firewalld)...${NC}"
     sudo firewall-cmd --permanent --add-port=11292/tcp 2>/dev/null || true
