@@ -10,7 +10,7 @@
 <img alt="last-commit" src="https://img.shields.io/github/last-commit/crc137/dokploy-reset-password?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-top-language" src="https://img.shields.io/github/languages/top/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-language-count" src="https://img.shields.io/github/languages/count/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
-<img alt="version" src="https://img.shields.io/badge/version-1.0.0-blue" style="margin: 0px 2px;">
+<img alt="version" src="https://img.shields.io/badge/version-1.1.0-blue" style="margin: 0px 2px;">
 </div>
 
 <br />
@@ -32,15 +32,41 @@ curl -sSL https://crc137.github.io/dokploy-reset-password/install.sh | bash
 ## Configuration
 
 Settings are stored in `.env` file.
+Create or edit `.env` file in the installation directory:
+
+```env
+# API key for securing the API (recommended)
+API_KEY=your-secret-api-key-here
+
+# API server port (default: 11292)
+API_PORT=11292
+
+# Default operation mode
+# true - automatically find Dokploy container
+# false - manual mode (requires container_id in request)
+AUTO_MODE=false
+```
+
 Edit `.env` and restart the service to apply changes:
 
 ```bash
 sudo systemctl restart reset-password-api-dokploy
 ```
 
-# Usage
+## Usage
 
-### Reset Password
+### Reset Password - Manual Mode
+
+Specify the container ID manually:
+
+```bash
+curl -X POST http://localhost:11292/api/v1/reset-password \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_api_key' \
+  -d '{"container_id": "your-container-id"}'
+```
+
+Or using the legacy field name:
 
 ```bash
 curl -X POST http://localhost:11292/api/v1/reset-password \
@@ -49,13 +75,41 @@ curl -X POST http://localhost:11292/api/v1/reset-password \
   -d '{"DOKPLOY_ID_DOCKER": "your-container-id"}'
 ```
 
+### Reset Password - Auto Mode
+
+Automatically find and use the Dokploy container:
+
+```bash
+curl -X POST http://localhost:11292/api/v1/reset-password \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_api_key' \
+  -d '{"auto_mode": true}'
+```
+
+Or using the `mode` parameter:
+
+```bash
+curl -X POST http://localhost:11292/api/v1/reset-password \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_api_key' \
+  -d '{"mode": "auto"}'
+```
+
 **Success response:**
 ```json
 {
   "success": true,
-  "password": "new_generated_password"
+  "password": "new_generated_password",
+  "container_id": "9edaf0cc317c",
+  "mode": "auto"
 }
 ```
+
+### Mode Selection Logic
+
+1. **Priority 1**: If `auto_mode` or `mode` is specified in the request, use that value
+2. **Priority 2**: If `container_id` or `DOKPLOY_ID_DOCKER` is provided, use manual mode
+3. **Priority 3**: Use `AUTO_MODE` value from `.env` file
 
 ### Service Management
 

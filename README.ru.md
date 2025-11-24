@@ -10,7 +10,7 @@
 <img alt="last-commit" src="https://img.shields.io/github/last-commit/crc137/dokploy-reset-password?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-top-language" src="https://img.shields.io/github/languages/top/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-language-count" src="https://img.shields.io/github/languages/count/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
-<img alt="version" src="https://img.shields.io/badge/version-1.0.0-blue" style="margin: 0px 2px;">
+<img alt="version" src="https://img.shields.io/badge/version-1.1.0-blue" style="margin: 0px 2px;">
 </div>
 
 <br />
@@ -32,6 +32,21 @@ curl -sSL https://crc137.github.io/dokploy-reset-password/install.sh | bash
 ## Конфигурация
 
 Настройки хранятся в файле `.env`.
+Создайте или отредактируйте файл `.env` в директории установки:
+
+```env
+# API ключ для защиты API (рекомендуется)
+API_KEY=your-secret-api-key-here
+
+# Порт для API сервера (по умолчанию: 11292)
+API_PORT=11292
+
+# Режим работы по умолчанию
+# true - автоматический поиск контейнера Dokploy
+# false - ручной режим (требуется указать container_id в запросе)
+AUTO_MODE=false
+```
+
 Отредактируйте `.env` и перезапустите сервис для применения изменений:
 
 ```bash
@@ -40,7 +55,18 @@ sudo systemctl restart reset-password-api-dokploy
 
 ## Использование
 
-### Сброс пароля
+### Сброс пароля - Ручной режим
+
+Укажите ID контейнера вручную:
+
+```bash
+curl -X POST http://localhost:11292/api/v1/reset-password \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_api_key' \
+  -d '{"container_id": "your-container-id"}'
+```
+
+Или используя старое имя поля:
 
 ```bash
 curl -X POST http://localhost:11292/api/v1/reset-password \
@@ -49,13 +75,41 @@ curl -X POST http://localhost:11292/api/v1/reset-password \
   -d '{"DOKPLOY_ID_DOCKER": "your-container-id"}'
 ```
 
+### Сброс пароля - Автоматический режим
+
+Автоматически найти и использовать контейнер Dokploy:
+
+```bash
+curl -X POST http://localhost:11292/api/v1/reset-password \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_api_key' \
+  -d '{"auto_mode": true}'
+```
+
+Или используя параметр `mode`:
+
+```bash
+curl -X POST http://localhost:11292/api/v1/reset-password \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your_api_key' \
+  -d '{"mode": "auto"}'
+```
+
 **Ответ при успехе:**
 ```json
 {
   "success": true,
-  "password": "new_generated_password"
+  "password": "new_generated_password",
+  "container_id": "9edaf0cc317c",
+  "mode": "auto"
 }
 ```
+
+### Логика выбора режима
+
+1. **Приоритет 1**: Если указан `auto_mode` или `mode` в запросе, используется это значение
+2. **Приоритет 2**: Если указан `container_id` или `DOKPLOY_ID_DOCKER`, используется ручной режим
+3. **Приоритет 3**: Используется значение `AUTO_MODE` из файла `.env`
 
 ### Управление сервисом
 
