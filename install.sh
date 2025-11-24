@@ -222,12 +222,61 @@ echo -e "${BLUE}[+] Starting service...${NC}"
 sudo systemctl start reset-password-api-dokploy.service
 
 echo -e "${BLUE}[*] Checking service status...${NC}"
-sleep 2
+sleep 3
+if sudo systemctl is-active --quiet reset-password-api-dokploy.service; then
+    echo -e "${GREEN}[+] Service is running${NC}"
+else
+    echo -e "${RED}[!] Service is not running! Checking logs...${NC}"
+    sudo journalctl -u reset-password-api-dokploy -n 20 --no-pager
+    exit 1
+fi
+
+echo -e "${BLUE}[*] Checking if port 11292 is listening...${NC}"
+if command -v netstat &> /dev/null; then
+    if netstat -tuln | grep -q ":11292 "; then
+        echo -e "${GREEN}[+] Port 11292 is listening${NC}"
+    else
+        echo -e "${YELLOW}[!] Port 11292 is not listening yet, waiting...${NC}"
+        sleep 2
+        if netstat -tuln | grep -q ":11292 "; then
+            echo -e "${GREEN}[+] Port 11292 is now listening${NC}"
+        else
+            echo -e "${RED}[!] Port 11292 is still not listening${NC}"
+        fi
+    fi
+elif command -v ss &> /dev/null; then
+    if ss -tuln | grep -q ":11292 "; then
+        echo -e "${GREEN}[+] Port 11292 is listening${NC}"
+    else
+        echo -e "${YELLOW}[!] Port 11292 is not listening yet, waiting...${NC}"
+        sleep 2
+        if ss -tuln | grep -q ":11292 "; then
+            echo -e "${GREEN}[+] Port 11292 is now listening${NC}"
+        else
+            echo -e "${RED}[!] Port 11292 is still not listening${NC}"
+        fi
+    fi
+fi
+
+echo -e "${BLUE}[*] Verifying firewall rules...${NC}"
+if command -v ufw &> /dev/null; then
+    if sudo ufw status | grep -q "11292/tcp"; then
+        echo -e "${GREEN}[+] Port 11292 is allowed in ufw${NC}"
+    else
+        echo -e "${YELLOW}[!] Port 11292 not found in ufw rules, adding...${NC}"
+        sudo ufw allow 11292/tcp
+        sudo ufw reload 2>/dev/null || true
+    fi
+fi
+
 sudo systemctl status reset-password-api-dokploy.service --no-pager
 
 echo ""
 echo -e "${GREEN}[+] Installation complete!${NC}"
 echo -e "${GREEN}[+] API Server is running on http://0.0.0.0:11292${NC}"
+echo ""
+echo -e "${BLUE}[*] To test from external IP, use:${NC}"
+echo -e "${BLUE}    curl http://$(hostname -I | awk '{print $1}'):11292${NC}"
 echo ""
 if [ -n "$API_KEY" ]; then
     echo -e "${BLUE}[*] API Key: ${NC}$API_KEY"
