@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/coonlink">
-    <img width="90px" src="logo-d.svg" alt="Logo" />
+    <img width="90px" src="https://raw.coonlink.com/cloud/logo.d.svg" alt="Logo" />
   </a>
   <h1>Reset Password API Server for Dokploy</h1>
 
