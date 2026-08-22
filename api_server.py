@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import hmac
 import subprocess
 import re
 import os
@@ -46,7 +47,7 @@ def check_api_key():
     if auth_header:
         logger.info(f"Received API key from header: {auth_header[:20]}... (length: {len(auth_header)})")
         logger.info(f"Expected API key: {API_KEY[:20]}... (length: {len(API_KEY)})")
-        if auth_header == API_KEY:
+        if hmac.compare_digest(auth_header, API_KEY):
             logger.info("API key verified from header")
             return True
         else:
@@ -57,7 +58,7 @@ def check_api_key():
         api_key_from_body = data.get('api_key')
         if api_key_from_body:
             logger.info(f"Received API key from body: {api_key_from_body[:20]}... (length: {len(api_key_from_body)})")
-            if api_key_from_body == API_KEY:
+            if hmac.compare_digest(api_key_from_body, API_KEY):
                 logger.info("API key verified from body")
                 return True
             else:
@@ -233,7 +234,7 @@ def reset_password():
 def index():
     return jsonify({
         'service': 'Reset Password API Server for Dokploy',
-        'version': '1.1.13',
+        'version': '1.2.0',
         'endpoints': {
             '/api/v1/reset-password': {
                 'method': 'POST',
