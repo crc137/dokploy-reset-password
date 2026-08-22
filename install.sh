@@ -23,8 +23,6 @@ mkdir -p "$SCRIPT_DIR"
 chmod 700 "$SCRIPT_DIR"
 cd "$SCRIPT_DIR"
 
-echo -e "${BLUE}[*] Installing Reset Password API Server (version ${GREEN}${VERSION}${BLUE})...${NC}"
-
 echo -e "${BLUE}[+] Downloading required files from RAW.COONLINK.COM..${NC}"
 
 if ! command -v curl &> /dev/null && [ ! -f /usr/bin/curl ]; then
@@ -80,6 +78,8 @@ if download_file "$RAW_BASE_URL/config.sh" "$SCRIPT_DIR/config.sh"; then
         source "$SCRIPT_DIR/config.sh"
     fi
 fi
+
+echo -e "${BLUE}[*] Installing Reset Password API Server (version ${GREEN}${VERSION}${BLUE})...${NC}"
 
 if [ -f "$0" ] && [ "$0" != "$SCRIPT_DIR/install.sh" ]; then
     if [ -r "$0" ]; then
@@ -289,43 +289,38 @@ else
     exit 1
 fi
 
-echo -e "${BLUE}[*] Checking if port 11292 is listening...${NC}"
-if command -v netstat &> /dev/null; then
-    if netstat -tuln | grep -q ":${API_PORT} "; then
-        echo -e "${GREEN}[+] Port 11292 is listening${NC}"
-    else
-        echo -e "${YELLOW}[!] Port 11292 is not listening yet, waiting...${NC}"
-        sleep 2
-        if netstat -tuln | grep -q ":${API_PORT} "; then
-            echo -e "${GREEN}[+] Port 11292 is now listening${NC}"
-        else
-            echo -e "${RED}[!] Port 11292 is still not listening${NC}"
-        fi
+echo -e "${BLUE}[*] Checking if port ${API_PORT} is listening...${NC}"
+PORT_UP=false
+for _ in 1 2 3 4 5; do
+    if command -v ss &> /dev/null && ss -tuln | grep -q ":${API_PORT} "; then
+        PORT_UP=true
+        break
+    elif command -v netstat &> /dev/null && netstat -tuln | grep -q ":${API_PORT} "; then
+        PORT_UP=true
+        break
+    elif command -v curl &> /dev/null && curl -s -o /dev/null "http://127.0.0.1:${API_PORT}/"; then
+        PORT_UP=true
+        break
     fi
-elif command -v ss &> /dev/null; then
-    if ss -tuln | grep -q ":${API_PORT} "; then
-        echo -e "${GREEN}[+] Port 11292 is listening${NC}"
-    else
-        echo -e "${YELLOW}[!] Port 11292 is not listening yet, waiting...${NC}"
-        sleep 2
-        if ss -tuln | grep -q ":${API_PORT} "; then
-            echo -e "${GREEN}[+] Port 11292 is now listening${NC}"
-        else
-            echo -e "${RED}[!] Port 11292 is still not listening${NC}"
-            echo -e "${YELLOW}[!] Checking service logs for port configuration...${NC}"
-            if sudo journalctl -u "${SERVICE_NAME}" -n 10 --no-pager | grep -q "11291"; then
-                echo -e "${RED}[!] ERROR: Service is running on port 11291 instead of 11292!${NC}"
-                echo -e "${YELLOW}[!] Checking .env file...${NC}"
-                if [ -f "$SCRIPT_DIR/.env" ]; then
-                    echo -e "${BLUE}[*] Current .env API_PORT setting:${NC}"
-                    grep "^API_PORT=" "$SCRIPT_DIR/.env" || echo "API_PORT not found in .env"
-                    echo -e "${BLUE}[*] Fixing .env file...${NC}"
-                    sed -i "s/^API_PORT=.*/API_PORT=${API_PORT}/" "$SCRIPT_DIR/.env"
-                    echo -e "${BLUE}[*] Restarting service...${NC}"
-                    sudo systemctl restart "${SERVICE_NAME}".service
-                    sleep 3
-                fi
-            fi
+    sleep 2
+done
+
+if [ "$PORT_UP" = "true" ]; then
+    echo -e "${GREEN}[+] Port ${API_PORT} is listening${NC}"
+else
+    echo -e "${RED}[!] Port ${API_PORT} is still not listening${NC}"
+    echo -e "${YELLOW}[!] Checking service logs for port configuration...${NC}"
+    if sudo journalctl -u "${SERVICE_NAME}" -n 10 --no-pager | grep -q "11291"; then
+        echo -e "${RED}[!] ERROR: Service is running on port 11291 instead of ${API_PORT}!${NC}"
+        echo -e "${YELLOW}[!] Checking .env file...${NC}"
+        if [ -f "$SCRIPT_DIR/.env" ]; then
+            echo -e "${BLUE}[*] Current .env API_PORT setting:${NC}"
+            grep "^API_PORT=" "$SCRIPT_DIR/.env" || echo "API_PORT not found in .env"
+            echo -e "${BLUE}[*] Fixing .env file...${NC}"
+            sed -i "s/^API_PORT=.*/API_PORT=${API_PORT}/" "$SCRIPT_DIR/.env"
+            echo -e "${BLUE}[*] Restarting service...${NC}"
+            sudo systemctl restart "${SERVICE_NAME}".service
+            sleep 3
         fi
     fi
 fi
