@@ -36,8 +36,6 @@ download_file() {
     local url="$1"
     local output="$2"
     if $CURL_CMD -sSLf "$url" -o "$output"; then
-        # A CDN/proxy redirect (e.g. Cloudflare) can end at a 200 HTML page
-        # (rickroll page, error page...) that curl happily saves as the file.
         if [ ! -s "$output" ] || head -c 512 "$output" | grep -qiE '<!doctype|<html[ >]'; then
             echo -e "${RED}[!] Downloaded $(basename "$output") is not a valid file (redirect/HTML page from a proxy?)${NC}"
             rm -f "$output"
@@ -73,7 +71,6 @@ EOF
 }
 
 if download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
-    # Extra guard: a proxied download can be valid-looking but wrong content.
     if ! grep -q '^API_KEY=' "$SCRIPT_DIR/.env.example" || ! grep -q '^API_PORT=' "$SCRIPT_DIR/.env.example"; then
         echo -e "${YELLOW}[!] .env.example from RAW.COONLINK.COM has unexpected content, recreating locally...${NC}"
         create_env_example
