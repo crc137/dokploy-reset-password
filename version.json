@@ -1,12 +1,12 @@
 {
     "install_new_version": "1.2.0",
-    "install_sh_sha256": "0316c16ca9403b2a09f6839a8b7ca53926ade37e95fde7b68ab22500ac7b05a6",
+    "install_sh_sha256": "b8a053d0a14b0488b3c2fcde7517820c706f62d7ef08aee31f0574414bc6a66f",
     "changelog": [
       {
         "version": "1.2.1",
         "date": "2026-08-22",
         "changes": [
-          "Removed the PUBLIC_BIND toggle - the API now always listens on 0.0.0.0; install.sh no longer touches firewall rules"
+          "Removed the PUBLIC_BIND toggle - the API now always listens on 0.0.0.0; install.sh unconditionally opens the API port in ufw/firewalld"
         ]
       },
       {

@@ -260,6 +260,19 @@ if systemctl is-active --quiet "${SERVICE_NAME}".service 2>/dev/null; then
     sleep 2
 fi
 
+echo -e "${BLUE}[+] Opening port $API_PORT in firewall...${NC}"
+if command -v ufw &> /dev/null; then
+    echo -e "${BLUE}[+] Opening port $API_PORT in firewall (ufw)...${NC}"
+    sudo ufw allow "${API_PORT}"/tcp
+    sudo ufw reload 2>/dev/null || true
+elif command -v firewall-cmd &> /dev/null; then
+    echo -e "${BLUE}[+] Opening port $API_PORT in firewall (firewalld)...${NC}"
+    sudo firewall-cmd --permanent --add-port="${API_PORT}"/tcp 2>/dev/null || true
+    sudo firewall-cmd --reload 2>/dev/null || true
+else
+    echo -e "${YELLOW}[!] No supported firewall found (ufw/firewalld) - skipping firewall configuration.${NC}"
+fi
+
 echo -e "${BLUE}[+] Enabling service...${NC}"
 sudo systemctl enable "${SERVICE_NAME}".service
 
@@ -317,11 +330,33 @@ elif command -v ss &> /dev/null; then
     fi
 fi
 
+echo -e "${BLUE}[*] Verifying firewall rules...${NC}"
+if command -v ufw &> /dev/null; then
+    if sudo ufw status | grep -q "${API_PORT}/tcp"; then
+        echo -e "${GREEN}[+] Port $API_PORT is allowed in ufw${NC}"
+    else
+        echo -e "${YELLOW}[!] Port $API_PORT not found in ufw rules, adding...${NC}"
+        sudo ufw allow "${API_PORT}"/tcp
+        sudo ufw reload 2>/dev/null || true
+    fi
+elif command -v firewall-cmd &> /dev/null; then
+    if sudo firewall-cmd --list-ports 2>/dev/null | grep -qw "${API_PORT}/tcp"; then
+        echo -e "${GREEN}[+] Port $API_PORT is allowed in firewalld${NC}"
+    else
+        echo -e "${YELLOW}[!] Port $API_PORT not found in firewalld rules, adding...${NC}"
+        sudo firewall-cmd --permanent --add-port="${API_PORT}"/tcp 2>/dev/null || true
+        sudo firewall-cmd --reload 2>/dev/null || true
+    fi
+fi
+
 sudo systemctl status "${SERVICE_NAME}".service --no-pager
 
 echo ""
 echo -e "${GREEN}[+] Installation complete!${NC}"
 echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://0.0.0.0:${API_PORT}${NC}"
+echo ""
+echo -e "${BLUE}[*] To test from external IP, use:${NC}"
+echo -e "${BLUE}    curl http://$(hostname -I | awk '{print $1}'):${API_PORT}${NC}"
 echo ""
 if [ -n "$API_KEY" ]; then
     echo -e "${BLUE}[*] API Key: ${NC}$API_KEY"
