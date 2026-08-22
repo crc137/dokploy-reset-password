@@ -1,6 +1,6 @@
 {
-    "install_new_version": "1.2.0",
-    "install_sh_sha256": "b8a053d0a14b0488b3c2fcde7517820c706f62d7ef08aee31f0574414bc6a66f",
+    "install_new_version": "1.2.1",
+    "install_sh_sha256": "cf249346dec558dee03b4a6c3082467f53759fb4bfe37778e516dd1d52d79a6f",
     "changelog": [
       {
         "version": "1.2.1",

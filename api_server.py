@@ -271,7 +271,7 @@ def panel_status():
 def index():
     return jsonify({
         'service': 'Reset Password API Server for Dokploy',
-        'version': '1.2.0',
+        'version': '1.2.1',
         'endpoints': {
             '/api/v1/panel-status': {
                 'method': 'GET',
