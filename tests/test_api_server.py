@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -17,6 +18,10 @@ def reset_state(monkeypatch):
         api_server.RATE_LIMIT_MAX_REQUESTS, api_server.RATE_LIMIT_WINDOW_SECONDS
     )
     monkeypatch.setattr(api_server, 'reset_rate_limiter', fresh_limiter)
+    fresh_status_limiter = api_server.RateLimiter(
+        api_server.STATUS_RATE_LIMIT_MAX_REQUESTS, api_server.STATUS_RATE_LIMIT_WINDOW_SECONDS
+    )
+    monkeypatch.setattr(api_server, 'status_rate_limiter', fresh_status_limiter)
     yield
 
 
@@ -299,6 +304,116 @@ class TestNetworkDefaults:
     def test_non_true_values_stay_localhost(self, monkeypatch, value):
         monkeypatch.setenv('PUBLIC_BIND', value)
         assert api_server._resolve_host() == '127.0.0.1'
+
+
+class FakeHTTPResponse:
+    def __init__(self, status, body):
+        self.status = status
+        self._body = body
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class TestPanelStatusEndpoint:
+    def test_requires_api_key(self, client):
+        resp = client.get('/api/v1/panel-status')
+        assert resp.status_code == 401
+
+    def test_reports_open_true(self, client, monkeypatch):
+        monkeypatch.setattr(api_server, 'check_dokploy_panel_open', lambda: (True, 'ok'))
+        resp = client.get('/api/v1/panel-status', headers={'X-API-Key': 'correct-horse-battery-staple'})
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body['success'] is True
+        assert body['open'] is True
+        assert body['detail'] == 'ok'
+
+    def test_reports_open_false(self, client, monkeypatch):
+        monkeypatch.setattr(api_server, 'check_dokploy_panel_open', lambda: (False, 'unreachable'))
+        resp = client.get('/api/v1/panel-status', headers={'X-API-Key': 'correct-horse-battery-staple'})
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body['open'] is False
+        assert body['detail'] == 'unreachable'
+
+    def test_has_its_own_rate_limit_budget(self, client, monkeypatch):
+        monkeypatch.setattr(api_server, 'check_dokploy_panel_open', lambda: (True, 'ok'))
+        headers = {'X-API-Key': 'correct-horse-battery-staple'}
+        for _ in range(api_server.STATUS_RATE_LIMIT_MAX_REQUESTS):
+            resp = client.get('/api/v1/panel-status', headers=headers)
+            assert resp.status_code == 200
+        resp = client.get('/api/v1/panel-status', headers=headers)
+        assert resp.status_code == 429
+
+    def test_status_calls_dont_consume_reset_endpoint_budget(self, client, monkeypatch):
+        monkeypatch.setattr(api_server, 'check_dokploy_panel_open', lambda: (True, 'ok'))
+        monkeypatch.setattr(api_server.subprocess, 'run', fake_helper_success)
+        headers = {'X-API-Key': 'correct-horse-battery-staple'}
+        for _ in range(api_server.STATUS_RATE_LIMIT_MAX_REQUESTS):
+            client.get('/api/v1/panel-status', headers=headers)
+        resp = client.post('/api/v1/reset-password', json={'container_id': 'abc123'}, headers=headers)
+        assert resp.status_code == 200
+
+
+class TestCheckDokployPanelOpen:
+    def test_non_http_scheme_rejected_before_urlopen(self, monkeypatch):
+        monkeypatch.setattr(api_server, 'DOKPLOY_URL', 'file:///etc/passwd')
+
+        def should_not_be_called(*a, **k):
+            raise AssertionError('urlopen must not be called for a non-http(s) DOKPLOY_URL')
+
+        monkeypatch.setattr(api_server.urllib.request, 'urlopen', should_not_be_called)
+        open_, detail = api_server.check_dokploy_panel_open()
+        assert open_ is False
+        assert detail == 'misconfigured'
+
+    def test_healthy_response_is_open(self, monkeypatch):
+        fake = FakeHTTPResponse(200, json.dumps({'status': 'ok'}).encode())
+        monkeypatch.setattr(api_server.urllib.request, 'urlopen', lambda req, timeout: fake)
+        assert api_server.check_dokploy_panel_open() == (True, 'ok')
+
+    def test_unexpected_body_is_not_open(self, monkeypatch):
+        fake = FakeHTTPResponse(200, json.dumps({'status': 'degraded'}).encode())
+        monkeypatch.setattr(api_server.urllib.request, 'urlopen', lambda req, timeout: fake)
+        open_, detail = api_server.check_dokploy_panel_open()
+        assert open_ is False
+
+    def test_non_200_is_not_open(self, monkeypatch):
+        fake = FakeHTTPResponse(500, b'{}')
+        monkeypatch.setattr(api_server.urllib.request, 'urlopen', lambda req, timeout: fake)
+        open_, detail = api_server.check_dokploy_panel_open()
+        assert open_ is False
+
+    def test_connection_refused_is_not_open(self, monkeypatch):
+        def boom(req, timeout):
+            raise api_server.urllib.error.URLError('Connection refused')
+
+        monkeypatch.setattr(api_server.urllib.request, 'urlopen', boom)
+        open_, detail = api_server.check_dokploy_panel_open()
+        assert open_ is False
+        assert detail == 'unreachable'
+
+    def test_http_error_is_not_open(self, monkeypatch):
+        def boom(req, timeout):
+            raise api_server.urllib.error.HTTPError('url', 503, 'Service Unavailable', {}, None)
+
+        monkeypatch.setattr(api_server.urllib.request, 'urlopen', boom)
+        open_, detail = api_server.check_dokploy_panel_open()
+        assert open_ is False
+        assert '503' in detail
+
+    def test_malformed_json_is_not_open(self, monkeypatch):
+        fake = FakeHTTPResponse(200, b'not json')
+        monkeypatch.setattr(api_server.urllib.request, 'urlopen', lambda req, timeout: fake)
+        open_, detail = api_server.check_dokploy_panel_open()
+        assert open_ is False
 
 
 class TestModeSelection:

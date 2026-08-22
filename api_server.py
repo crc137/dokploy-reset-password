@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import hmac
+import json
 import logging
 import os
 import re
@@ -9,6 +10,8 @@ import shutil
 import subprocess
 import threading
 import time
+import urllib.error
+import urllib.request
 
 from flask import Flask, request, jsonify
 from waitress import serve
@@ -41,11 +44,16 @@ DOCKER_BIN = shutil.which('docker') or 'docker'
 
 API_KEY = os.getenv('API_KEY', '').strip()
 AUTO_MODE = os.getenv('AUTO_MODE', 'false').strip().lower() in ('true', '1', 'yes', 'on')
+DOKPLOY_URL = os.getenv('DOKPLOY_URL', 'http://127.0.0.1:3000').strip().rstrip('/')
+DOKPLOY_HEALTH_TIMEOUT = 5
 
 CONTAINER_ID_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$')
 
 RATE_LIMIT_MAX_REQUESTS = 10
 RATE_LIMIT_WINDOW_SECONDS = 300
+
+STATUS_RATE_LIMIT_MAX_REQUESTS = 30
+STATUS_RATE_LIMIT_WINDOW_SECONDS = 60
 
 
 class RateLimiter:
@@ -70,6 +78,7 @@ class RateLimiter:
 
 
 reset_rate_limiter = RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECONDS)
+status_rate_limiter = RateLimiter(STATUS_RATE_LIMIT_MAX_REQUESTS, STATUS_RATE_LIMIT_WINDOW_SECONDS)
 
 
 def check_api_key():
@@ -95,6 +104,30 @@ def check_api_key():
 
     logger.warning("No valid API key found in request")
     return False
+
+
+def check_dokploy_panel_open():
+    if not (DOKPLOY_URL.startswith('http://') or DOKPLOY_URL.startswith('https://')):
+        logger.error(f"DOKPLOY_URL must start with http:// or https:// (got: {DOKPLOY_URL!r})")
+        return False, 'misconfigured'
+
+    url = f"{DOKPLOY_URL}/api/settings.health"
+    try:
+        req = urllib.request.Request(url, method='GET')
+        with urllib.request.urlopen(req, timeout=DOKPLOY_HEALTH_TIMEOUT) as resp:
+            if resp.status != 200:
+                return False, f"unhealthy (HTTP {resp.status})"
+            body = json.loads(resp.read().decode('utf-8'))
+            if isinstance(body, dict) and body.get('status') == 'ok':
+                return True, 'ok'
+            return False, 'unhealthy (unexpected response)'
+    except urllib.error.HTTPError as e:
+        return False, f"unhealthy (HTTP {e.code})"
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return False, 'unreachable'
+    except Exception as e:
+        logger.error(f"Unexpected error checking Dokploy panel status: {e}")
+        return False, 'unreachable'
 
 
 def is_valid_container_id(value):
@@ -276,12 +309,47 @@ def reset_password():
         }), 500
 
 
+@app.route('/api/v1/panel-status', methods=['GET'])
+def panel_status():
+    allowed, retry_after = status_rate_limiter.allow(request.remote_addr or 'unknown')
+    if not allowed:
+        response = jsonify({
+            'success': False,
+            'error': 'Too many requests. Please try again later.'
+        })
+        response.status_code = 429
+        response.headers['Retry-After'] = str(retry_after)
+        return response
+
+    if not check_api_key():
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized: Invalid or missing API key'
+        }), 401
+
+    open_, detail = check_dokploy_panel_open()
+    return jsonify({
+        'success': True,
+        'open': open_,
+        'detail': detail
+    }), 200
+
+
 @app.route('/', methods=['GET'])
 def index():
     return jsonify({
         'service': 'Reset Password API Server for Dokploy',
         'version': '1.2.0',
         'endpoints': {
+            '/api/v1/panel-status': {
+                'method': 'GET',
+                'description': 'Check whether the Dokploy panel is reachable and healthy',
+                'required_headers': ['X-API-Key'],
+                'response': {
+                    'open': 'true if Dokploy answered healthy, false otherwise',
+                    'detail': "'ok', 'unreachable', or an 'unhealthy (...)' reason"
+                }
+            },
             '/api/v1/reset-password': {
                 'method': 'POST',
                 'description': 'Reset Dokploy admin password',

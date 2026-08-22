@@ -80,6 +80,24 @@ sudo systemctl restart reset-password-api-dokploy
 
 ## Использование
 
+### Проверка статуса панели
+
+Проверьте, доступна ли сама панель Dokploy, прежде чем вызывать сброс пароля (проксирует собственный эндпоинт Dokploy `settings.health`):
+
+```bash
+curl -H 'X-API-Key: your_api_key' http://localhost:11292/api/v1/panel-status
+```
+
+```json
+{
+  "success": true,
+  "open": true,
+  "detail": "ok"
+}
+```
+
+`open: false` означает, что Dokploy не ответил как исправный - `detail` объясняет причину (`unreachable`, `unhealthy (HTTP ...)` или `misconfigured`, если `DOKPLOY_URL` не является корректным `http(s)://` адресом). Настройте `DOKPLOY_URL` в `.env`, если Dokploy работает не на стандартном `http://127.0.0.1:3000`.
+
 ### Сброс пароля - Ручной режим
 
 Укажите ID контейнера вручную:

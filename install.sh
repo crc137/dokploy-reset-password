@@ -61,6 +61,7 @@ if ! download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
 API_PORT=${API_PORT}
 API_KEY=
 AUTO_MODE=
+DOKPLOY_URL=http://127.0.0.1:3000
 PUBLIC_BIND=false
 LOG_LEVEL=INFO
 AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
