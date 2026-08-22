@@ -15,18 +15,18 @@ else
     NC="\033[0m"
 fi
 
-set -e
+set -euo pipefail
 
 echo -e "${BLUE}[*] Uninstalling Reset Password API Server...${NC}"
 
-if systemctl is-active --quiet ${SERVICE_NAME}.service; then
+if systemctl is-active --quiet "${SERVICE_NAME}".service; then
     echo -e "${YELLOW}[-] Stopping service...${NC}"
-    sudo systemctl stop ${SERVICE_NAME}.service
+    sudo systemctl stop "${SERVICE_NAME}".service
 fi
 
-if systemctl is-enabled --quiet ${SERVICE_NAME}.service; then
+if systemctl is-enabled --quiet "${SERVICE_NAME}".service 2>/dev/null; then
     echo -e "${YELLOW}[-] Disabling service...${NC}"
-    sudo systemctl disable ${SERVICE_NAME}.service
+    sudo systemctl disable "${SERVICE_NAME}".service
 fi
 
 if [ -f "$SERVICE_FILE" ]; then
@@ -36,7 +36,7 @@ if [ -f "$SERVICE_FILE" ]; then
 fi
 
 echo -e "${YELLOW}[-] Cleaning old logs...${NC}"
-sudo journalctl --vacuum-time=0s -u ${SERVICE_NAME}.service 2>/dev/null || true
+sudo journalctl --vacuum-time=0s -u "${SERVICE_NAME}".service 2>/dev/null || true
 
 echo -e "${GREEN}[+] Uninstall complete!${NC}"
 echo -e "${BLUE}[*] Note: Virtual environment and files in ResetPasswordDeploy directory are not removed.${NC}"

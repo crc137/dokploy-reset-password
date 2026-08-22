@@ -39,10 +39,10 @@ download_file() {
     local url="$1"
     local output="$2"
     if $CURL_CMD -sSLf "$url" -o "$output"; then
-        echo -e "${GREEN}[+] Downloaded: $(basename $output)${NC}"
+        echo -e "${GREEN}[+] Downloaded: $(basename "$output")${NC}"
         return 0
     else
-        echo -e "${RED}[!] Failed to download: $(basename $output)${NC}"
+        echo -e "${RED}[!] Failed to download: $(basename "$output")${NC}"
         return 1
     fi
 }
@@ -61,6 +61,8 @@ if ! download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
 API_PORT=${API_PORT}
 API_KEY=
 AUTO_MODE=
+PUBLIC_BIND=false
+LOG_LEVEL=INFO
 AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
 TG_TOKEN=
 TG_ADMIN=
@@ -100,19 +102,27 @@ PYTHON_FULL=$(echo "$PYTHON_FULL_VERSION" | cut -d. -f1,2,3)
 
 echo -e "${BLUE}[*] Detected Python version: ${GREEN}$PYTHON_FULL_VERSION${NC}"
 
+PYTHON_MAJOR=$(echo "$PYTHON_MAJOR_MINOR" | cut -d. -f1)
+PYTHON_MINOR=$(echo "$PYTHON_MAJOR_MINOR" | cut -d. -f2)
+if [ "$PYTHON_MAJOR" -lt 3 ] || { [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 9 ]; }; then
+    echo -e "${RED}[!] Error: Python 3.9+ is required (found ${PYTHON_FULL_VERSION}).${NC}"
+    echo -e "${RED}[!] Flask 3.x and waitress both require Python 3.9+; older Python releases are end-of-life.${NC}"
+    exit 1
+fi
+
 install_python_venv() {
     if command -v apt-get &> /dev/null; then
         sudo apt-get update
         
-        if apt-cache show python${PYTHON_FULL}-venv &> /dev/null 2>&1; then
+        if apt-cache show python"${PYTHON_FULL}"-venv &> /dev/null 2>&1; then
             echo -e "${BLUE}[+] Installing python${PYTHON_FULL}-venv and python${PYTHON_FULL}-distutils...${NC}"
-            sudo apt-get install -y python${PYTHON_FULL}-venv python${PYTHON_FULL}-distutils
+            sudo apt-get install -y python"${PYTHON_FULL}"-venv python"${PYTHON_FULL}"-distutils
             return 0
         fi
         
-        if apt-cache show python${PYTHON_MAJOR_MINOR}-venv &> /dev/null 2>&1; then
+        if apt-cache show python"${PYTHON_MAJOR_MINOR}"-venv &> /dev/null 2>&1; then
             echo -e "${BLUE}[+] Installing python${PYTHON_MAJOR_MINOR}-venv...${NC}"
-            sudo apt-get install -y python${PYTHON_MAJOR_MINOR}-venv
+            sudo apt-get install -y python"${PYTHON_MAJOR_MINOR}"-venv
             return 0
         fi
         
@@ -143,7 +153,7 @@ if ! python3 -c "import venv" &> /dev/null 2>&1; then
     fi
 fi
 
-TEST_VENV_DIR="/tmp/test_venv_$$"
+TEST_VENV_DIR=$(mktemp -d)
 if python3 -m venv "$TEST_VENV_DIR" &> /dev/null 2>&1; then
     rm -rf "$TEST_VENV_DIR"
 else
@@ -158,7 +168,7 @@ else
 fi
 
 
-set -e
+set -euo pipefail
 
 echo -e "${BLUE}[+] Creating virtual environment...${NC}"
 python3 -m venv venv
@@ -176,7 +186,7 @@ if [ -z "$API_KEY" ]; then
         echo -e "${YELLOW}[!] Warning: Could not generate API key automatically.${NC}"
         echo -e "${YELLOW}[!] Please set API_KEY environment variable manually for security.${NC}"
         echo -e "${BLUE}[*] You can generate one with: openssl rand -hex 32${NC}"
-        read -p "Enter API key (or press Enter to skip): " API_KEY
+        read -r -p "Enter API key (or press Enter to skip): " API_KEY
     else
         echo -e "${GREEN}[+] Generated API key: ${NC}$API_KEY"
         echo -e "${YELLOW}[!] IMPORTANT: Save this key! You'll need it in your bot's config.${NC}"
@@ -229,7 +239,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=${USER:-root}
 WorkingDirectory=$SCRIPT_DIR
 ExecStart=$SCRIPT_DIR/venv/bin/python3 $SCRIPT_DIR/api_server.py
 Restart=always
@@ -239,39 +249,56 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
+# Secure by default: only open the host firewall / advertise a public URL
+# when the operator has explicitly opted in via PUBLIC_BIND=true in .env.
+# api_server.py itself reads the same setting to decide whether to bind
+# 127.0.0.1 (default) or 0.0.0.0.
+PUBLIC_BIND_VALUE=$( (grep -E '^PUBLIC_BIND=' "$SCRIPT_DIR/.env" 2>/dev/null || true) | tail -1 | cut -d'=' -f2- | tr '[:upper:]' '[:lower:]')
+PUBLIC_BIND_ENABLED="false"
+case "$PUBLIC_BIND_VALUE" in
+    true|1|yes|on) PUBLIC_BIND_ENABLED="true" ;;
+esac
+
 echo -e "${BLUE}[+] Reloading systemd...${NC}"
 sudo systemctl daemon-reload
 
-if systemctl is-active --quiet ${SERVICE_NAME}.service 2>/dev/null; then
+if systemctl is-active --quiet "${SERVICE_NAME}".service 2>/dev/null; then
     echo -e "${BLUE}[+] Restarting service to apply .env changes...${NC}"
-    sudo systemctl restart ${SERVICE_NAME}.service
+    sudo systemctl restart "${SERVICE_NAME}".service
     sleep 2
 fi
 
-echo -e "${BLUE}[+] Opening port $API_PORT in firewall...${NC}"
-if command -v ufw &> /dev/null; then
-    echo -e "${BLUE}[+] Opening port $API_PORT in firewall (ufw)...${NC}"
-    sudo ufw allow ${API_PORT}/tcp
-    sudo ufw reload 2>/dev/null || true
-elif command -v firewall-cmd &> /dev/null; then
-    echo -e "${BLUE}[+] Opening port $API_PORT in firewall (firewalld)...${NC}"
-    sudo firewall-cmd --permanent --add-port=${API_PORT}/tcp 2>/dev/null || true
-    sudo firewall-cmd --reload 2>/dev/null || true
+if [ "$PUBLIC_BIND_ENABLED" = "true" ]; then
+    echo -e "${BLUE}[+] PUBLIC_BIND=true - opening port $API_PORT in firewall...${NC}"
+    if command -v ufw &> /dev/null; then
+        echo -e "${BLUE}[+] Opening port $API_PORT in firewall (ufw)...${NC}"
+        sudo ufw allow "${API_PORT}"/tcp
+        sudo ufw reload 2>/dev/null || true
+    elif command -v firewall-cmd &> /dev/null; then
+        echo -e "${BLUE}[+] Opening port $API_PORT in firewall (firewalld)...${NC}"
+        sudo firewall-cmd --permanent --add-port="${API_PORT}"/tcp 2>/dev/null || true
+        sudo firewall-cmd --reload 2>/dev/null || true
+    fi
+    echo -e "${YELLOW}[!] Reminder: this API has no TLS of its own. Put a TLS-terminating reverse${NC}"
+    echo -e "${YELLOW}[!] proxy (e.g. Traefik, which Dokploy already runs) in front of it.${NC}"
+else
+    echo -e "${BLUE}[*] PUBLIC_BIND is disabled (default) - API bound to 127.0.0.1, firewall left untouched.${NC}"
+    echo -e "${BLUE}[*] Set PUBLIC_BIND=true in $SCRIPT_DIR/.env (behind a TLS reverse proxy) if remote access is genuinely required.${NC}"
 fi
 
 echo -e "${BLUE}[+] Enabling service...${NC}"
-sudo systemctl enable ${SERVICE_NAME}.service
+sudo systemctl enable "${SERVICE_NAME}".service
 
 echo -e "${BLUE}[+] Starting service...${NC}"
-sudo systemctl start ${SERVICE_NAME}.service
+sudo systemctl start "${SERVICE_NAME}".service
 
 echo -e "${BLUE}[*] Checking service status...${NC}"
 sleep 3
-if sudo systemctl is-active --quiet ${SERVICE_NAME}.service; then
+if sudo systemctl is-active --quiet "${SERVICE_NAME}".service; then
     echo -e "${GREEN}[+] Service is running${NC}"
 else
     echo -e "${RED}[!] Service is not running! Checking logs...${NC}"
-    sudo journalctl -u ${SERVICE_NAME} -n 20 --no-pager
+    sudo journalctl -u "${SERVICE_NAME}" -n 20 --no-pager
     exit 1
 fi
 
@@ -299,7 +326,7 @@ elif command -v ss &> /dev/null; then
         else
             echo -e "${RED}[!] Port 11292 is still not listening${NC}"
             echo -e "${YELLOW}[!] Checking service logs for port configuration...${NC}"
-            if sudo journalctl -u ${SERVICE_NAME} -n 10 --no-pager | grep -q "11291"; then
+            if sudo journalctl -u "${SERVICE_NAME}" -n 10 --no-pager | grep -q "11291"; then
                 echo -e "${RED}[!] ERROR: Service is running on port 11291 instead of 11292!${NC}"
                 echo -e "${YELLOW}[!] Checking .env file...${NC}"
                 if [ -f "$SCRIPT_DIR/.env" ]; then
@@ -308,7 +335,7 @@ elif command -v ss &> /dev/null; then
                     echo -e "${BLUE}[*] Fixing .env file...${NC}"
                     sed -i "s/^API_PORT=.*/API_PORT=${API_PORT}/" "$SCRIPT_DIR/.env"
                     echo -e "${BLUE}[*] Restarting service...${NC}"
-                    sudo systemctl restart ${SERVICE_NAME}.service
+                    sudo systemctl restart "${SERVICE_NAME}".service
                     sleep 3
                 fi
             fi
@@ -316,25 +343,36 @@ elif command -v ss &> /dev/null; then
     fi
 fi
 
-echo -e "${BLUE}[*] Verifying firewall rules...${NC}"
-if command -v ufw &> /dev/null; then
-    if sudo ufw status | grep -q "${API_PORT}/tcp"; then
-        echo -e "${GREEN}[+] Port $API_PORT is allowed in ufw${NC}"
-    else
-        echo -e "${YELLOW}[!] Port $API_PORT not found in ufw rules, adding...${NC}"
-        sudo ufw allow ${API_PORT}/tcp
-        sudo ufw reload 2>/dev/null || true
+if [ "$PUBLIC_BIND_ENABLED" = "true" ]; then
+    echo -e "${BLUE}[*] Verifying firewall rules...${NC}"
+    if command -v ufw &> /dev/null; then
+        if sudo ufw status | grep -q "${API_PORT}/tcp"; then
+            echo -e "${GREEN}[+] Port $API_PORT is allowed in ufw${NC}"
+        else
+            echo -e "${YELLOW}[!] Port $API_PORT not found in ufw rules, adding...${NC}"
+            sudo ufw allow "${API_PORT}"/tcp
+            sudo ufw reload 2>/dev/null || true
+        fi
     fi
 fi
 
-sudo systemctl status ${SERVICE_NAME}.service --no-pager
+sudo systemctl status "${SERVICE_NAME}".service --no-pager
 
 echo ""
 echo -e "${GREEN}[+] Installation complete!${NC}"
-echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://0.0.0.0:${API_PORT}${NC}"
-echo ""
-echo -e "${BLUE}[*] To test from external IP, use:${NC}"
-echo -e "${BLUE}    curl http://$(hostname -I | awk '{print $1}'):${API_PORT}${NC}"
+if [ "$PUBLIC_BIND_ENABLED" = "true" ]; then
+    echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://0.0.0.0:${API_PORT}${NC}"
+    echo ""
+    echo -e "${YELLOW}[!] PUBLIC_BIND is enabled but this API has no TLS of its own - make sure a${NC}"
+    echo -e "${YELLOW}[!] reverse proxy is terminating TLS in front of it before relying on this.${NC}"
+    echo ""
+    echo -e "${BLUE}[*] To test from external IP, use:${NC}"
+    echo -e "${BLUE}    curl http://$(hostname -I | awk '{print $1}'):${API_PORT}${NC}"
+else
+    echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://127.0.0.1:${API_PORT} (localhost-only)${NC}"
+    echo ""
+    echo -e "${BLUE}[*] Set PUBLIC_BIND=true in $SCRIPT_DIR/.env (behind a TLS reverse proxy) to reach it remotely.${NC}"
+fi
 echo ""
 if [ -n "$API_KEY" ]; then
     echo -e "${BLUE}[*] API Key: ${NC}$API_KEY"
@@ -348,18 +386,23 @@ if [ -n "$API_KEY" ]; then
     echo "  -H 'X-API-Key: $API_KEY' \\"
     echo "  -d '{\"DOKPLOY_ID_DOCKER\": \"your-container-id\"}'"
 else
-    echo -e "${RED}[!] API_KEY not set - API is unprotected!${NC}"
-    echo -e "${YELLOW}[!] Set it manually in .env file or set environment variable.${NC}"
-    echo ""
-    echo -e "${BLUE}[*] Test with:${NC} curl -X POST http://localhost:${API_PORT}/api/v1/reset-password -H 'Content-Type: application/json' -d '{\"DOKPLOY_ID_DOCKER\": \"your-container-id\"}'"
+    echo -e "${RED}[!] API_KEY not set - the service will refuse every request until it is.${NC}"
+    echo -e "${YELLOW}[!] Set API_KEY in $SCRIPT_DIR/.env and restart: sudo systemctl restart ${SERVICE_NAME}${NC}"
 fi
 echo ""
 echo -e "${BLUE}[*] Version:${NC} $VERSION"
 
 echo -e "${BLUE}[+] Setting up daily update check...${NC}"
 CRON_JOB="0 2 * * * $SCRIPT_DIR/update.sh >> $SCRIPT_DIR/update.log 2>&1"
-(crontab -l 2>/dev/null | grep -v "$SCRIPT_DIR/update.sh"; echo "$CRON_JOB") | crontab -
-if [ $? -eq 0 ]; then
+# `crontab -l` exits non-zero when the user has no existing crontab yet (a
+# common case on a fresh host), and `grep -v` exits non-zero when nothing
+# was filtered out - both are normal outcomes here, not real failures, so
+# each is `|| true`-guarded to avoid tripping `set -e`/`pipefail` (verified
+# empirically for both the "no existing crontab" and "existing crontab with
+# a stale entry to replace" cases before adding this hardening).
+NEW_CRONTAB=$( (crontab -l 2>/dev/null || true) | grep -v "$SCRIPT_DIR/update.sh" || true
+echo "$CRON_JOB")
+if printf '%s\n' "$NEW_CRONTAB" | crontab -; then
     echo -e "${GREEN}[+] Daily update check scheduled (runs at 2:00 AM daily)${NC}"
 else
     echo -e "${YELLOW}[!] Warning: Failed to set up cron job. You can manually add:${NC}"
