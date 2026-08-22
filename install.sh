@@ -36,6 +36,13 @@ download_file() {
     local url="$1"
     local output="$2"
     if $CURL_CMD -sSLf "$url" -o "$output"; then
+        # A CDN/proxy redirect (e.g. Cloudflare) can end at a 200 HTML page
+        # (rickroll page, error page...) that curl happily saves as the file.
+        if [ ! -s "$output" ] || head -c 512 "$output" | grep -qiE '<!doctype|<html[ >]'; then
+            echo -e "${RED}[!] Downloaded $(basename "$output") is not a valid file (redirect/HTML page from a proxy?)${NC}"
+            rm -f "$output"
+            return 1
+        fi
         echo -e "${GREEN}[+] Downloaded: $(basename "$output")${NC}"
         return 0
     else
@@ -52,8 +59,7 @@ chmod +x "$SCRIPT_DIR/reset-password-helper.sh"
 
 download_file "$RAW_BASE_URL/requirements.txt" "$SCRIPT_DIR/requirements.txt" || exit 1
 
-if ! download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
-    echo -e "${YELLOW}[!] .env.example not found on RAW.COONLINK.COM, creating locally...${NC}"
+create_env_example() {
     cat > "$SCRIPT_DIR/.env.example" << EOF
 API_PORT=${API_PORT}
 API_KEY=
@@ -64,6 +70,17 @@ AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
 TG_TOKEN=
 TG_ADMIN=
 EOF
+}
+
+if download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
+    # Extra guard: a proxied download can be valid-looking but wrong content.
+    if ! grep -q '^API_KEY=' "$SCRIPT_DIR/.env.example" || ! grep -q '^API_PORT=' "$SCRIPT_DIR/.env.example"; then
+        echo -e "${YELLOW}[!] .env.example from RAW.COONLINK.COM has unexpected content, recreating locally...${NC}"
+        create_env_example
+    fi
+else
+    echo -e "${YELLOW}[!] .env.example not found on RAW.COONLINK.COM, creating locally...${NC}"
+    create_env_example
 fi
 
 download_file "$RAW_BASE_URL/uninstall.sh" "$SCRIPT_DIR/uninstall.sh" || exit 1
