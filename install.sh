@@ -61,6 +61,7 @@ if ! download_file "$RAW_BASE_URL/.env.example" "$SCRIPT_DIR/.env.example"; then
 API_PORT=${API_PORT}
 API_KEY=
 AUTO_MODE=
+DOKPLOY_URL=http://127.0.0.1:3000
 PUBLIC_BIND=false
 LOG_LEVEL=INFO
 AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
@@ -180,7 +181,7 @@ echo -e "${BLUE}[+] Installing Python dependencies...${NC}"
 
 echo -e "${BLUE}[+] Creating systemd service...${NC}"
 
-if [ -z "$API_KEY" ]; then
+if [ -z "${API_KEY:-}" ]; then
     API_KEY=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "")
     if [ -z "$API_KEY" ]; then
         echo -e "${YELLOW}[!] Warning: Could not generate API key automatically.${NC}"

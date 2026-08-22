@@ -1,6 +1,6 @@
 {
     "install_new_version": "1.2.0",
-    "install_sh_sha256": "8dc69ce83f5c4f46475b624b28f6b40b2282a43495b2c4d2f8c9d46a860bbfdb",
+    "install_sh_sha256": "93142adfad66175b1a4d63b5f4053308512f09cddefcef58f60a478cd7cda3b6",
     "changelog": [
       {
         "version": "1.2.0",
@@ -20,7 +20,9 @@
           "Tightened auto-mode container discovery to an exact image match instead of a substring match",
           "Replaced predictable /tmp file and directory names in update.sh/install.sh with mktemp, removing a local symlink-race precondition; .env backups now inherit mktemp's owner-only permissions",
           "Pinned dependencies to floor/ceiling version ranges (Flask, python-dotenv, waitress) and raised the minimum Python requirement to 3.9+ to match them; install.sh now checks this before proceeding",
-          "Removed the webbrowser-open easter egg on unauthorized requests and trimmed generic exception text returned to callers"
+          "Removed the webbrowser-open easter egg on unauthorized requests and trimmed generic exception text returned to callers",
+          "Fixed an unbound-variable crash in install.sh (API_KEY was never assigned before the set -u check that decides whether to generate one)",
+          "Added GET /api/v1/panel-status, proxying Dokploy's own settings.health endpoint so callers can check the panel is actually up before requesting a reset; added DOKPLOY_URL to .env"
         ]
       },
       {

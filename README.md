@@ -80,6 +80,24 @@ sudo systemctl restart reset-password-api-dokploy
 
 ## Usage
 
+### Check Panel Status
+
+Check whether the Dokploy panel itself is up before deciding to call reset-password (proxies Dokploy's own `settings.health` endpoint):
+
+```bash
+curl -H 'X-API-Key: your_api_key' http://localhost:11292/api/v1/panel-status
+```
+
+```json
+{
+  "success": true,
+  "open": true,
+  "detail": "ok"
+}
+```
+
+`open: false` means Dokploy didn't answer healthy - `detail` says why (`unreachable`, `unhealthy (HTTP ...)`, or `misconfigured` if `DOKPLOY_URL` isn't a valid `http(s)://` URL). Configure `DOKPLOY_URL` in `.env` if Dokploy isn't at the default `http://127.0.0.1:3000`.
+
 ### Reset Password - Manual Mode
 
 Specify the container ID manually:
