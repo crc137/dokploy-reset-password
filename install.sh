@@ -249,10 +249,6 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-# Secure by default: only open the host firewall / advertise a public URL
-# when the operator has explicitly opted in via PUBLIC_BIND=true in .env.
-# api_server.py itself reads the same setting to decide whether to bind
-# 127.0.0.1 (default) or 0.0.0.0.
 PUBLIC_BIND_VALUE=$( (grep -E '^PUBLIC_BIND=' "$SCRIPT_DIR/.env" 2>/dev/null || true) | tail -1 | cut -d'=' -f2- | tr '[:upper:]' '[:lower:]')
 PUBLIC_BIND_ENABLED="false"
 case "$PUBLIC_BIND_VALUE" in
@@ -394,12 +390,6 @@ echo -e "${BLUE}[*] Version:${NC} $VERSION"
 
 echo -e "${BLUE}[+] Setting up daily update check...${NC}"
 CRON_JOB="0 2 * * * $SCRIPT_DIR/update.sh >> $SCRIPT_DIR/update.log 2>&1"
-# `crontab -l` exits non-zero when the user has no existing crontab yet (a
-# common case on a fresh host), and `grep -v` exits non-zero when nothing
-# was filtered out - both are normal outcomes here, not real failures, so
-# each is `|| true`-guarded to avoid tripping `set -e`/`pipefail` (verified
-# empirically for both the "no existing crontab" and "existing crontab with
-# a stale entry to replace" cases before adding this hardening).
 NEW_CRONTAB=$( (crontab -l 2>/dev/null || true) | grep -v "$SCRIPT_DIR/update.sh" || true
 echo "$CRON_JOB")
 if printf '%s\n' "$NEW_CRONTAB" | crontab -; then

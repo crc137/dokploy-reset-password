@@ -37,50 +37,18 @@ app = Flask(__name__)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HELPER_SCRIPT = os.path.join(SCRIPT_DIR, 'reset-password-helper.sh')
 
-# Resolve 'docker' to an absolute path once at startup rather than relying on
-# PATH lookup on every call. Falls back to the bare command name (unchanged
-# prior behavior) if it can't be found here, so this can't turn a working
-# deployment into a broken one - it's a hardening measure, not a new
-# hard requirement.
 DOCKER_BIN = shutil.which('docker') or 'docker'
 
 API_KEY = os.getenv('API_KEY', '').strip()
 AUTO_MODE = os.getenv('AUTO_MODE', 'false').strip().lower() in ('true', '1', 'yes', 'on')
 
-# Docker's own container-name character rule is `[a-zA-Z0-9][a-zA-Z0-9_.-]*`.
-# The 128-char cap is a defensive sanity bound (not a claimed exact Docker
-# limit) chosen generously above any real Dokploy service/task name so it
-# never rejects legitimate input, while still refusing pathological input
-# and anything that could be interpreted as a `docker exec` flag (which all
-# start with `-`, already excluded by the leading-character class below).
 CONTAINER_ID_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$')
 
-# Per-IP request budget for the reset endpoint. Every call to this endpoint
-# performs a real password reset (or attempts authentication), so both
-# failed-auth guessing and successful-but-repeated resets need to be capped.
-# Threshold follows OWASP's Authentication Cheat Sheet guidance of a
-# 5-10 attempt lockout threshold with a minutes-scale (not permanent)
-# lockout window, applied per source IP rather than per-account since this
-# API has exactly one shared credential and no concept of separate user
-# accounts to lock out against each other.
-# https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
 RATE_LIMIT_MAX_REQUESTS = 10
-RATE_LIMIT_WINDOW_SECONDS = 300  # 5 minutes
+RATE_LIMIT_WINDOW_SECONDS = 300
 
 
 class RateLimiter:
-    """Fixed-window per-key request limiter.
-
-    Keyed on the caller's raw socket-peer IP (request.remote_addr), never on
-    client-controlled headers such as X-Forwarded-For/X-Real-IP, so a caller
-    cannot reset their own budget by sending a different header value. If
-    this service is ever run behind a reverse proxy that the operator wants
-    trusted for the *real* client IP, that must be done deliberately with
-    Werkzeug's ProxyFix (not implemented here, since doing this by default
-    would let anyone who can reach the app spoof their rate-limit identity
-    via a header, exactly the bypass this design avoids).
-    """
-
     def __init__(self, max_requests, window_seconds, time_func=time.monotonic):
         self._max = max_requests
         self._window = window_seconds
@@ -105,12 +73,6 @@ reset_rate_limiter = RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECO
 
 
 def check_api_key():
-    """Fail closed: only an explicitly configured, matching key authenticates.
-
-    A missing/empty API_KEY configuration is a server misconfiguration, not
-    an "open by design" mode - every request is rejected until an operator
-    sets one.
-    """
     if not API_KEY:
         logger.error("API_KEY is not configured - refusing all requests until it is set")
         return False
@@ -157,15 +119,6 @@ def find_dokploy_container():
             logger.warning("No running containers found")
             return None
 
-        # Exact match (ignoring an optional :tag suffix) against the image
-        # `dokploy/dokploy` Dokploy itself publishes and deploys as
-        # (verified against Dokploy/dokploy's packages/server/src/services
-        # /settings.ts: `docker service update --image dokploy/dokploy:...`).
-        # A substring check here would also match any attacker-run image
-        # whose name merely *contains* that string; exact match doesn't
-        # grant a new privilege on its own (running arbitrary containers on
-        # this host already requires Docker-socket-equivalent access), but
-        # it removes an easy way to make auto_mode target the wrong container.
         image_re = re.compile(r'^dokploy/dokploy(:.*)?$')
 
         for line in lines:
@@ -251,9 +204,6 @@ def reset_password():
                     'error': 'Dokploy container not found. Make sure Dokploy container is running or use manual mode with container_id.'
                 }), 404
             if not is_valid_container_id(container_id):
-                # Defense in depth: a real `docker ps` ID/name should always
-                # pass this, but never trust it blindly just because it came
-                # from a subprocess we invoked.
                 logger.error(f"Auto-discovered container id failed validation: {container_id!r}")
                 return jsonify({
                     'success': False,
@@ -374,10 +324,6 @@ def _resolve_port():
 
 
 def _resolve_host():
-    # Secure by default: bind to localhost only unless the operator has
-    # explicitly opted in to a public bind. install.sh only opens the host
-    # firewall for this port when PUBLIC_BIND is also set to true, so the
-    # two are meant to be changed together.
     public_bind = os.getenv('PUBLIC_BIND', 'false').strip().lower() in ('true', '1', 'yes', 'on')
     return '0.0.0.0' if public_bind else '127.0.0.1'
 

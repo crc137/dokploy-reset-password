@@ -310,8 +310,6 @@ fi
 VERSION_FILE="$version_file_for_update"
 TEMP_SCRIPT_SELF="$temp_update_script"
 
-# mktemp (not fixed /tmp names) so a co-resident local user can't pre-plant
-# a symlink at a predictable path ahead of these being created by root.
 ENV_BACKUP=\$(mktemp --suffix=.env.backup) || { echo "Failed to create temp file for .env backup" >&2; exit 1; }
 BACKUP_DIR=\$(mktemp -d /tmp/reset-password-backup-XXXXXXXX) || { echo "Failed to create backup directory" >&2; exit 1; }
 INSTALL_NEW=\$(mktemp --suffix=.sh) || { echo "Failed to create temp file for downloaded install.sh" >&2; exit 1; }
@@ -387,9 +385,6 @@ fi
 
 log_step "[3/8] Backing up .env file..."
 if [ -f "\$SCRIPT_DIR/.env" ]; then
-    # ENV_BACKUP came from mktemp, which creates files at mode 600 (owner
-    # read/write only) by default - the copy inherits no broader access
-    # regardless of the caller's umask.
     cp "\$SCRIPT_DIR/.env" "\$ENV_BACKUP"
     log_success ".env backed up to \$ENV_BACKUP"
 else

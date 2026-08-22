@@ -1,11 +1,3 @@
-"""Security regression tests for api_server.py.
-
-Run with: pytest tests/test_api_server.py -v
-
-These tests exercise the Flask app directly via its test client (no real
-network listener, no real Docker/systemd/root required) and mock
-subprocess.run so no real `docker exec` ever runs.
-"""
 import os
 import subprocess
 import sys
@@ -20,7 +12,6 @@ import api_server  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def reset_state(monkeypatch):
-    """Give every test a known API key and a clean rate limiter."""
     monkeypatch.setattr(api_server, 'API_KEY', 'correct-horse-battery-staple')
     fresh_limiter = api_server.RateLimiter(
         api_server.RATE_LIMIT_MAX_REQUESTS, api_server.RATE_LIMIT_WINDOW_SECONDS
@@ -42,10 +33,6 @@ def fake_helper_success(*args, **kwargs):
 def fake_helper_not_found(*args, **kwargs):
     return subprocess.CompletedProcess(args=args, returncode=1, stdout='', stderr='Error: No such container')
 
-
-# ---------------------------------------------------------------------------
-# Authentication: missing / empty / wrong / malformed / correct key
-# ---------------------------------------------------------------------------
 
 class TestAuthentication:
     def test_missing_key_rejected(self, client):
@@ -70,8 +57,6 @@ class TestAuthentication:
         assert resp.status_code == 401
 
     def test_malformed_key_in_body_does_not_crash(self, client, monkeypatch):
-        """A non-string api_key field (e.g. a JSON number) must fail auth
-        cleanly, not raise TypeError from hmac.compare_digest."""
         resp = client.post(
             '/api/v1/reset-password',
             json={'container_id': 'abc123', 'api_key': 12345},
@@ -106,8 +91,6 @@ class TestAuthentication:
         assert resp.status_code == 200
 
     def test_fails_closed_when_api_key_unset(self, client, monkeypatch):
-        """This is the F7 fix: no API_KEY configured must reject everything,
-        never silently allow it."""
         monkeypatch.setattr(api_server, 'API_KEY', '')
         resp = client.post(
             '/api/v1/reset-password',
@@ -117,10 +100,6 @@ class TestAuthentication:
         assert resp.status_code == 401
         assert resp.get_json()['success'] is False
 
-
-# ---------------------------------------------------------------------------
-# Authorization (this API has exactly one authorization decision: the key)
-# ---------------------------------------------------------------------------
 
 class TestAuthorization:
     def test_unauthorized_reset_never_calls_docker(self, client, monkeypatch):
@@ -150,10 +129,6 @@ class TestAuthorization:
         assert called['value'] is True
 
 
-# ---------------------------------------------------------------------------
-# Input validation - container_id (Phase 7 / F5)
-# ---------------------------------------------------------------------------
-
 class TestContainerIdValidation:
     @pytest.mark.parametrize('value', [
         '9edaf0cc317c',
@@ -176,9 +151,9 @@ class TestContainerIdValidation:
         '../../etc/passwd',
         '',
         '   ',
-        'a' * 129,  # one over the defensive length cap
+        'a' * 129,
         'valid-but-\x00-embedded-nul',
-        'héllo',  # non-ASCII
+        'héllo',
         None,
         123,
     ])
@@ -194,7 +169,7 @@ class TestContainerIdValidation:
             headers={'X-API-Key': 'correct-horse-battery-staple'},
         )
         assert resp.status_code == 400
-        assert called['value'] is False  # never reached subprocess.run at all
+        assert called['value'] is False
 
     def test_api_rejects_empty_container_id_in_manual_mode(self, client):
         resp = client.post(
@@ -214,10 +189,6 @@ class TestContainerIdValidation:
         assert resp.status_code == 500
         assert resp.get_json()['success'] is False
 
-
-# ---------------------------------------------------------------------------
-# Rate limiting (Phase 5)
-# ---------------------------------------------------------------------------
 
 class TestRateLimiter:
     def test_allows_up_to_the_limit(self):
@@ -248,7 +219,7 @@ class TestRateLimiter:
         allowed2, _ = limiter.allow('1.2.3.4')
         assert allowed1 is True
         assert allowed2 is False
-        fake_now[0] += 61  # advance past the window
+        fake_now[0] += 61
         allowed3, _ = limiter.allow('1.2.3.4')
         assert allowed3 is True
 
@@ -263,7 +234,6 @@ class TestRateLimiter:
         assert 'Retry-After' in resp.headers
 
     def test_rate_limit_applies_before_auth_check(self, client, monkeypatch):
-        """Failed-auth guessing must also be throttled, not just successful calls."""
         monkeypatch.setattr(api_server.subprocess, 'run', fake_helper_success)
         for _ in range(api_server.RATE_LIMIT_MAX_REQUESTS):
             client.post('/api/v1/reset-password', json={'container_id': 'abc123'}, headers={'X-API-Key': 'wrong'})
@@ -271,7 +241,6 @@ class TestRateLimiter:
         assert resp.status_code == 429
 
     def test_rate_limit_keyed_on_remote_addr_not_forwarded_for(self, client, monkeypatch):
-        """A caller can't reset their own budget by spoofing X-Forwarded-For."""
         monkeypatch.setattr(api_server.subprocess, 'run', fake_helper_success)
         headers_base = {'X-API-Key': 'correct-horse-battery-staple'}
         for _ in range(api_server.RATE_LIMIT_MAX_REQUESTS):
@@ -281,10 +250,6 @@ class TestRateLimiter:
         resp = client.post('/api/v1/reset-password', json={'container_id': 'abc123'}, headers=spoofed_headers)
         assert resp.status_code == 429
 
-
-# ---------------------------------------------------------------------------
-# Secrets: never in logs / responses / exceptions
-# ---------------------------------------------------------------------------
 
 class TestSecretHandling:
     def test_wrong_key_not_echoed_in_response(self, client):
@@ -320,10 +285,6 @@ class TestSecretHandling:
         assert resp.get_json()['password'] == 'sup3rSecr3t'
 
 
-# ---------------------------------------------------------------------------
-# Network defaults (Phase 2)
-# ---------------------------------------------------------------------------
-
 class TestNetworkDefaults:
     def test_default_host_is_localhost(self, monkeypatch):
         monkeypatch.delenv('PUBLIC_BIND', raising=False)
@@ -339,10 +300,6 @@ class TestNetworkDefaults:
         monkeypatch.setenv('PUBLIC_BIND', value)
         assert api_server._resolve_host() == '127.0.0.1'
 
-
-# ---------------------------------------------------------------------------
-# auto_mode / mode-selection logic (behavioral regression - must not change)
-# ---------------------------------------------------------------------------
 
 class TestModeSelection:
     def test_explicit_container_id_uses_manual_mode(self, client, monkeypatch):
@@ -366,10 +323,6 @@ class TestModeSelection:
         assert resp.get_json()['container_id'] == 'found123'
 
     def test_auto_mode_as_json_boolean_does_not_crash(self, client, monkeypatch):
-        """Regression test: the ORIGINAL code called .lower() directly on
-        data.get('auto_mode', 'false'), which raised AttributeError whenever
-        auto_mode was sent as a real JSON boolean (`{"auto_mode": true}`) -
-        exactly the example the README itself documents. Must work now."""
         monkeypatch.setattr(api_server, 'find_dokploy_container', lambda: 'found123')
         monkeypatch.setattr(api_server.subprocess, 'run', fake_helper_success)
         resp = client.post(
@@ -405,12 +358,8 @@ class TestModeSelection:
             json={},
             headers={'X-API-Key': 'correct-horse-battery-staple'},
         )
-        assert resp.status_code == 400  # manual mode, no container_id given
+        assert resp.status_code == 400
 
-
-# ---------------------------------------------------------------------------
-# find_dokploy_container image matching (F12/F13 tightened matching)
-# ---------------------------------------------------------------------------
 
 class TestContainerDiscovery:
     def test_exact_image_match(self, monkeypatch):
@@ -423,8 +372,6 @@ class TestContainerDiscovery:
         assert api_server.find_dokploy_container() == 'abc123'
 
     def test_substring_lookalike_image_not_matched(self, monkeypatch):
-        """An attacker-run image that merely CONTAINS the string
-        'dokploy/dokploy' must not match (F12/F13 hardening)."""
         fake = subprocess.CompletedProcess(
             args=[], returncode=0,
             stdout='evil456\tattacker/not-dokploy/dokploy-lookalike\tsomename\n',

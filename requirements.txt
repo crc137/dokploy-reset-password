@@ -1,8 +1,3 @@
-# Bounded pins: floor picks up the current major generation (and, for
-# python-dotenv, the version that fixed CVE-2026-28684 in set_key/unset_key -
-# functions this project never calls, but the floor is kept anyway as
-# defense in depth); ceiling excludes an unreleased next major to avoid an
-# unannounced breaking API change. All three require Python 3.9+.
 Flask>=3.0.0,<4.0
 python-dotenv>=1.2.2,<2.0
 waitress>=3.0.0,<4.0

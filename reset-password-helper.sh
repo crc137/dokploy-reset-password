@@ -8,11 +8,6 @@ if [[ -z "$CONTAINER_ID" ]]; then
     exit 1
 fi
 
-# Belt-and-suspenders: api_server.py already validates container_id against
-# Docker's own container-name character rule before invoking this script,
-# but this script can also be run directly, so it re-validates here too.
-# `--` forces everything after it to be treated as positional CONTAINER,
-# never as a docker exec flag, regardless of what CONTAINER_ID contains.
 if ! [[ "$CONTAINER_ID" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$ ]]; then
     echo "Error: Invalid container ID format"
     exit 1
