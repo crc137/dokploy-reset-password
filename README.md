@@ -68,7 +68,6 @@ sudo systemctl restart reset-password-api-dokploy
 ## Security
 
 - **Authentication is required.** There is no unauthenticated mode: if `API_KEY` is not set, every request is rejected. The API listens on `0.0.0.0`; if reachable beyond localhost, put a TLS-terminating reverse proxy in front or restrict the port with a firewall.
-- **Authentication is required.** There is no unauthenticated mode: if `API_KEY` is not set, every request is rejected.
 - **Rate limited.** The reset endpoint allows at most 10 requests per source IP per 5 minutes (not adjustable via `.env` - hardcode changes only), matching OWASP's authentication lockout guidance. This is keyed on the raw connection IP, never on `X-Forwarded-For`, so it can't be bypassed with a spoofed header.
 - **`container_id` is validated** against Docker's own container-name syntax before it's ever passed to `docker exec`.
 
