@@ -35,7 +35,8 @@ Settings are stored in `.env` file.
 Create or edit `.env` file in the installation directory:
 
 ```env
-# API key for securing the API (recommended)
+# API key for securing the API (REQUIRED - the server refuses every
+# request until this is set; there is no unauthenticated mode)
 API_KEY=your-secret-api-key-here
 
 # API server port (default: 11292)
@@ -45,6 +46,12 @@ API_PORT=11292
 # true - automatically find Dokploy container
 # false - manual mode (requires container_id in request)
 AUTO_MODE=false
+
+# Network exposure (default: false = localhost-only, the secure default).
+# Set to true only if this sits behind a TLS-terminating reverse proxy
+# (e.g. Traefik, which Dokploy already runs) - this API has no TLS of its
+# own. See "Security" below.
+PUBLIC_BIND=false
 
 # Automatic updates check
 # true - automatically install new updates when available
@@ -63,6 +70,13 @@ Edit `.env` and restart the service to apply changes:
 ```bash
 sudo systemctl restart reset-password-api-dokploy
 ```
+
+## Security
+
+- **Localhost-only by default.** The API binds to `127.0.0.1` unless `PUBLIC_BIND=true` is set in `.env`. It has no TLS of its own, so reach it via an SSH tunnel/VPN, or put a TLS-terminating reverse proxy (e.g. Traefik, which Dokploy already runs) in front of it before setting `PUBLIC_BIND=true`.
+- **Authentication is required.** There is no unauthenticated mode: if `API_KEY` is not set, every request is rejected.
+- **Rate limited.** The reset endpoint allows at most 10 requests per source IP per 5 minutes (not adjustable via `.env` - hardcode changes only), matching OWASP's authentication lockout guidance. This is keyed on the raw connection IP, never on `X-Forwarded-For`, so it can't be bypassed with a spoofed header.
+- **`container_id` is validated** against Docker's own container-name syntax before it's ever passed to `docker exec`.
 
 ## Usage
 
@@ -166,7 +180,7 @@ cd /root/ResetPasswordDeploy
 
 ## Requirements
 
-- Python 3.6+
+- Python 3.9+ (required by Flask 3.x and waitress; `install.sh` checks this and refuses to proceed on an older Python)
 - Docker
 - Access to Dokploy Docker container
 - sudo privileges

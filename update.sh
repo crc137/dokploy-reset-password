@@ -191,7 +191,8 @@ check_for_updates() {
     local current_version=$(get_current_version)
     log_message "INFO" "Current version: $current_version"
     
-    local version_file="/tmp/version.json"
+    local version_file
+    version_file=$(mktemp --suffix=.json) || { log_message "ERROR" "Failed to create temp file for version.json"; return 1; }
     if ! curl -sSLf "$VERSION_URL" -o "$version_file"; then
         log_message "ERROR" "Failed to download version file from $VERSION_URL"
         return 1
@@ -284,10 +285,12 @@ New version: <code>$new_version</code>
         
         send_telegram_notification "$notification"
         
-        local temp_update_script="/tmp/update_clean_install.sh"
+        local temp_update_script
+        temp_update_script=$(mktemp --suffix=.sh) || { log_message "ERROR" "Failed to create temp update script file"; rm -f "$version_file"; return 1; }
         log_message "INFO" "Creating temporary update script..."
-        
-        local version_file_for_update="/tmp/version-for-update.json"
+
+        local version_file_for_update
+        version_file_for_update=$(mktemp --suffix=.json) || { log_message "ERROR" "Failed to create temp file for version-for-update.json"; rm -f "$version_file" "$temp_update_script"; return 1; }
         cp "$version_file" "$version_file_for_update" 2>/dev/null || true
         
         cat > "$temp_update_script" << UPDATE_SCRIPT_EOF
@@ -305,10 +308,11 @@ else
 fi
 
 VERSION_FILE="$version_file_for_update"
-ENV_BACKUP="/tmp/.env.backup.\$\$"
-BACKUP_DIR="/tmp/reset-password-backup-\$(date +%Y%m%d-%H%M%S)"
-TEMP_SCRIPT_SELF="/tmp/update_clean_install.sh"
-INSTALL_NEW="/tmp/install_new.sh"
+TEMP_SCRIPT_SELF="$temp_update_script"
+
+ENV_BACKUP=\$(mktemp --suffix=.env.backup) || { echo "Failed to create temp file for .env backup" >&2; exit 1; }
+BACKUP_DIR=\$(mktemp -d /tmp/reset-password-backup-XXXXXXXX) || { echo "Failed to create backup directory" >&2; exit 1; }
+INSTALL_NEW=\$(mktemp --suffix=.sh) || { echo "Failed to create temp file for downloaded install.sh" >&2; exit 1; }
 
 log_step() {
     local msg="\$1"
@@ -563,8 +567,8 @@ if download_with_retry "\$INSTALL_SCRIPT_URL" "\$INSTALL_NEW"; then
     
     if [ -z "\$expected_hash" ]; then
         log_info "Hash not found in saved version file, downloading from server..."
-        temp_version="/tmp/version-check.json"
-        if curl -sSLf "\$VERSION_URL" -o "\$temp_version" 2>/dev/null; then
+        temp_version=\$(mktemp --suffix=.json) || { echo "Failed to create temp file for version-check.json" >&2; temp_version=""; }
+        if [ -n "\$temp_version" ] && curl -sSLf "\$VERSION_URL" -o "\$temp_version" 2>/dev/null; then
             if command -v python3 &> /dev/null; then
                 expected_hash=\$(python3 -c "import json; data = json.load(open('\$temp_version')); print(data.get('install_sh_sha256', ''))" 2>/dev/null)
             elif command -v jq &> /dev/null; then
