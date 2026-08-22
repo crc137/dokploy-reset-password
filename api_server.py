@@ -321,19 +321,14 @@ def _resolve_port():
         logger.warning(f"Invalid API_PORT '{port_str}', using default: 11292")
         return 11292
 
-def _resolve_host():
-    public_bind = os.getenv('PUBLIC_BIND', 'true').strip().lower() in ('true', '1', 'yes', 'on')
-    return '0.0.0.0' if public_bind else '127.0.0.1'
-
 if __name__ == '__main__':
     port = _resolve_port()
-    host = _resolve_host()
+    host = '0.0.0.0'
 
     if not API_KEY:
         logger.error("API_KEY is not set. The server will start but will reject every request ""until API_KEY is configured in .env - this API no longer runs unauthenticated.")
 
-    if host == '0.0.0.0':
-        logger.warning("PUBLIC_BIND is enabled: listening on 0.0.0.0. This API has no TLS of its ""own - put it behind a TLS-terminating reverse proxy (e.g. Traefik, which ""Dokploy itself already runs) if it must be reachable beyond localhost.")
+    logger.warning("Listening on 0.0.0.0. This API has no TLS of its own - put it behind a ""TLS-terminating reverse proxy (e.g. Traefik, which Dokploy itself already runs) ""if it must be reachable beyond localhost.")
 
     logger.info(f"Starting API server on {host}:{port} (waitress)")
     try:

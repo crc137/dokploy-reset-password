@@ -61,7 +61,6 @@ API_PORT=${API_PORT}
 API_KEY=
 AUTO_MODE=
 DOKPLOY_URL=http://127.0.0.1:3000
-PUBLIC_BIND=true
 LOG_LEVEL=INFO
 AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
 TG_TOKEN=
@@ -252,16 +251,6 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-PUBLIC_BIND_VALUE=$( (grep -E '^PUBLIC_BIND=' "$SCRIPT_DIR/.env" 2>/dev/null || true) | tail -1 | cut -d'=' -f2- | tr '[:upper:]' '[:lower:]')
-if [ -z "$PUBLIC_BIND_VALUE" ]; then
-    PUBLIC_BIND_ENABLED="true"
-else
-    PUBLIC_BIND_ENABLED="false"
-    case "$PUBLIC_BIND_VALUE" in
-        true|1|yes|on) PUBLIC_BIND_ENABLED="true" ;;
-    esac
-fi
-
 echo -e "${BLUE}[+] Reloading systemd...${NC}"
 sudo systemctl daemon-reload
 
@@ -271,22 +260,18 @@ if systemctl is-active --quiet "${SERVICE_NAME}".service 2>/dev/null; then
     sleep 2
 fi
 
-if [ "$PUBLIC_BIND_ENABLED" = "true" ]; then
-    echo -e "${BLUE}[+] PUBLIC_BIND=true - opening port $API_PORT in firewall...${NC}"
-    if command -v ufw &> /dev/null; then
-        echo -e "${BLUE}[+] Opening port $API_PORT in firewall (ufw)...${NC}"
-        sudo ufw allow "${API_PORT}"/tcp
-        sudo ufw reload 2>/dev/null || true
-    elif command -v firewall-cmd &> /dev/null; then
-        echo -e "${BLUE}[+] Opening port $API_PORT in firewall (firewalld)...${NC}"
-        sudo firewall-cmd --permanent --add-port="${API_PORT}"/tcp 2>/dev/null || true
-        sudo firewall-cmd --reload 2>/dev/null || true
-    fi
-    echo -e "${YELLOW}[!] Reminder: this API has no TLS of its own. Put a TLS-terminating reverse${NC}"
-    echo -e "${YELLOW}[!] proxy (e.g. Traefik, which Dokploy already runs) in front of it.${NC}"
-else
-    echo -e "${BLUE}[*] PUBLIC_BIND=false - API bound to 127.0.0.1, firewall left untouched.${NC}"
+echo -e "${BLUE}[+] Opening port $API_PORT in firewall...${NC}"
+if command -v ufw &> /dev/null; then
+    echo -e "${BLUE}[+] Opening port $API_PORT in firewall (ufw)...${NC}"
+    sudo ufw allow "${API_PORT}"/tcp
+    sudo ufw reload 2>/dev/null || true
+elif command -v firewall-cmd &> /dev/null; then
+    echo -e "${BLUE}[+] Opening port $API_PORT in firewall (firewalld)...${NC}"
+    sudo firewall-cmd --permanent --add-port="${API_PORT}"/tcp 2>/dev/null || true
+    sudo firewall-cmd --reload 2>/dev/null || true
 fi
+echo -e "${YELLOW}[!] Reminder: this API has no TLS of its own. Put a TLS-terminating reverse${NC}"
+echo -e "${YELLOW}[!] proxy (e.g. Traefik, which Dokploy already runs) in front of it.${NC}"
 
 echo -e "${BLUE}[+] Enabling service...${NC}"
 sudo systemctl enable "${SERVICE_NAME}".service
@@ -345,16 +330,14 @@ elif command -v ss &> /dev/null; then
     fi
 fi
 
-if [ "$PUBLIC_BIND_ENABLED" = "true" ]; then
-    echo -e "${BLUE}[*] Verifying firewall rules...${NC}"
-    if command -v ufw &> /dev/null; then
-        if sudo ufw status | grep -q "${API_PORT}/tcp"; then
-            echo -e "${GREEN}[+] Port $API_PORT is allowed in ufw${NC}"
-        else
-            echo -e "${YELLOW}[!] Port $API_PORT not found in ufw rules, adding...${NC}"
-            sudo ufw allow "${API_PORT}"/tcp
-            sudo ufw reload 2>/dev/null || true
-        fi
+echo -e "${BLUE}[*] Verifying firewall rules...${NC}"
+if command -v ufw &> /dev/null; then
+    if sudo ufw status | grep -q "${API_PORT}/tcp"; then
+        echo -e "${GREEN}[+] Port $API_PORT is allowed in ufw${NC}"
+    else
+        echo -e "${YELLOW}[!] Port $API_PORT not found in ufw rules, adding...${NC}"
+        sudo ufw allow "${API_PORT}"/tcp
+        sudo ufw reload 2>/dev/null || true
     fi
 fi
 
@@ -362,19 +345,13 @@ sudo systemctl status "${SERVICE_NAME}".service --no-pager
 
 echo ""
 echo -e "${GREEN}[+] Installation complete!${NC}"
-if [ "$PUBLIC_BIND_ENABLED" = "true" ]; then
-    echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://0.0.0.0:${API_PORT}${NC}"
-    echo ""
-    echo -e "${YELLOW}[!] PUBLIC_BIND is enabled but this API has no TLS of its own - make sure a${NC}"
-    echo -e "${YELLOW}[!] reverse proxy is terminating TLS in front of it before relying on this.${NC}"
-    echo ""
-    echo -e "${BLUE}[*] To test from external IP, use:${NC}"
-    echo -e "${BLUE}    curl http://$(hostname -I | awk '{print $1}'):${API_PORT}${NC}"
-else
-    echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://127.0.0.1:${API_PORT} (localhost-only)${NC}"
-    echo ""
-    echo -e "${BLUE}[*] Set PUBLIC_BIND=true in $SCRIPT_DIR/.env (behind a TLS reverse proxy) to reach it remotely.${NC}"
-fi
+echo -e "${GREEN}[+] API Server (version ${VERSION}) is running on http://0.0.0.0:${API_PORT}${NC}"
+echo ""
+echo -e "${YELLOW}[!] This API has no TLS of its own - make sure a reverse proxy is terminating${NC}"
+echo -e "${YELLOW}[!] TLS in front of it before relying on this.${NC}"
+echo ""
+echo -e "${BLUE}[*] To test from external IP, use:${NC}"
+echo -e "${BLUE}    curl http://$(hostname -I | awk '{print $1}'):${API_PORT}${NC}"
 echo ""
 if [ -n "$API_KEY" ]; then
     echo -e "${BLUE}[*] API Key: ${NC}$API_KEY"

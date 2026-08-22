@@ -290,22 +290,6 @@ class TestSecretHandling:
         assert resp.get_json()['password'] == 'sup3rSecr3t'
 
 
-class TestNetworkDefaults:
-    def test_default_host_is_all_interfaces(self, monkeypatch):
-        monkeypatch.delenv('PUBLIC_BIND', raising=False)
-        assert api_server._resolve_host() == '0.0.0.0'
-
-    @pytest.mark.parametrize('value', ['true', '1', 'yes', 'on', 'TRUE'])
-    def test_public_bind_opts_in_to_all_interfaces(self, monkeypatch, value):
-        monkeypatch.setenv('PUBLIC_BIND', value)
-        assert api_server._resolve_host() == '0.0.0.0'
-
-    @pytest.mark.parametrize('value', ['false', '0', 'no', '', 'garbage'])
-    def test_non_true_values_stay_localhost(self, monkeypatch, value):
-        monkeypatch.setenv('PUBLIC_BIND', value)
-        assert api_server._resolve_host() == '127.0.0.1'
-
-
 class FakeHTTPResponse:
     def __init__(self, status, body):
         self.status = status
