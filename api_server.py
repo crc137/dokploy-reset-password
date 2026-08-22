@@ -322,7 +322,7 @@ def _resolve_port():
         return 11292
 
 def _resolve_host():
-    public_bind = os.getenv('PUBLIC_BIND', 'false').strip().lower() in ('true', '1', 'yes', 'on')
+    public_bind = os.getenv('PUBLIC_BIND', 'true').strip().lower() in ('true', '1', 'yes', 'on')
     return '0.0.0.0' if public_bind else '127.0.0.1'
 
 if __name__ == '__main__':

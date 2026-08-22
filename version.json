@@ -1,6 +1,6 @@
 {
     "install_new_version": "1.2.0",
-    "install_sh_sha256": "93142adfad66175b1a4d63b5f4053308512f09cddefcef58f60a478cd7cda3b6",
+    "install_sh_sha256": "710dca8fc2469737e4f166352429ea9347f22d66d0171c89bcc1729b620198d0",
     "changelog": [
       {
         "version": "1.2.0",
@@ -15,14 +15,15 @@
           "API_KEY is now required: the server fails closed and refuses every request when unset, instead of running unauthenticated",
           "Removed flask-cors and the wildcard CORS policy - this API has no legitimate browser caller",
           "Added per-IP rate limiting (10 requests / 5 minutes) on the reset endpoint, keyed on the raw connection IP so it can't be bypassed via X-Forwarded-For",
-          "Replaced the Flask development server with waitress; added PUBLIC_BIND (default false = 127.0.0.1-only) so the API is no longer bound to 0.0.0.0 and firewall-opened by default",
+          "Replaced the Flask development server with waitress; added a PUBLIC_BIND setting (default true = 0.0.0.0, set to false to restrict to 127.0.0.1) with the firewall opened automatically to match",
           "Added strict container_id validation (Docker's own naming syntax) before it ever reaches docker exec, plus a `--` argument separator in reset-password-helper.sh, closing a docker-exec argument-injection precondition",
           "Tightened auto-mode container discovery to an exact image match instead of a substring match",
           "Replaced predictable /tmp file and directory names in update.sh/install.sh with mktemp, removing a local symlink-race precondition; .env backups now inherit mktemp's owner-only permissions",
           "Pinned dependencies to floor/ceiling version ranges (Flask, python-dotenv, waitress) and raised the minimum Python requirement to 3.9+ to match them; install.sh now checks this before proceeding",
           "Removed the webbrowser-open easter egg on unauthorized requests and trimmed generic exception text returned to callers",
           "Fixed an unbound-variable crash in install.sh (API_KEY was never assigned before the set -u check that decides whether to generate one)",
-          "Added GET /api/v1/panel-status, proxying Dokploy's own settings.health endpoint so callers can check the panel is actually up before requesting a reset; added DOKPLOY_URL to .env"
+          "Added GET /api/v1/panel-status, proxying Dokploy's own settings.health endpoint so callers can check the panel is actually up before requesting a reset; added DOKPLOY_URL to .env",
+          "Fixed the fresh-install .env creation path silently failing to write the generated API_KEY (an exact-match sed that any variation in .env.example - trailing whitespace, CRLF - defeated); now matches the already-robust reinstall-path logic"
         ]
       },
       {

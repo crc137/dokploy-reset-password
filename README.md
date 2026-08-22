@@ -47,11 +47,11 @@ API_PORT=11292
 # false - manual mode (requires container_id in request)
 AUTO_MODE=false
 
-# Network exposure (default: false = localhost-only, the secure default).
-# Set to true only if this sits behind a TLS-terminating reverse proxy
-# (e.g. Traefik, which Dokploy already runs) - this API has no TLS of its
-# own. See "Security" below.
-PUBLIC_BIND=false
+# Network exposure (default: true = 0.0.0.0).
+# This API has no TLS of its own - put a TLS-terminating reverse proxy
+# (e.g. Traefik, which Dokploy already runs) in front of it, or set this
+# to false to keep it on 127.0.0.1 only. See "Security" below.
+PUBLIC_BIND=true
 
 # Automatic updates check
 # true - automatically install new updates when available
@@ -73,7 +73,7 @@ sudo systemctl restart reset-password-api-dokploy
 
 ## Security
 
-- **Localhost-only by default.** The API binds to `127.0.0.1` unless `PUBLIC_BIND=true` is set in `.env`. It has no TLS of its own, so reach it via an SSH tunnel/VPN, or put a TLS-terminating reverse proxy (e.g. Traefik, which Dokploy already runs) in front of it before setting `PUBLIC_BIND=true`.
+- **Binds `0.0.0.0` by default.** Set `PUBLIC_BIND=false` in `.env` to restrict it to `127.0.0.1` instead. This API has no TLS of its own - put a TLS-terminating reverse proxy (e.g. Traefik, which Dokploy already runs) in front of it, or reach it via an SSH tunnel/VPN if you switch it to localhost-only.
 - **Authentication is required.** There is no unauthenticated mode: if `API_KEY` is not set, every request is rejected.
 - **Rate limited.** The reset endpoint allows at most 10 requests per source IP per 5 minutes (not adjustable via `.env` - hardcode changes only), matching OWASP's authentication lockout guidance. This is keyed on the raw connection IP, never on `X-Forwarded-For`, so it can't be bypassed with a spoofed header.
 - **`container_id` is validated** against Docker's own container-name syntax before it's ever passed to `docker exec`.

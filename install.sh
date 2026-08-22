@@ -61,7 +61,7 @@ API_PORT=${API_PORT}
 API_KEY=
 AUTO_MODE=
 DOKPLOY_URL=http://127.0.0.1:3000
-PUBLIC_BIND=false
+PUBLIC_BIND=true
 LOG_LEVEL=INFO
 AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
 TG_TOKEN=
@@ -253,10 +253,14 @@ WantedBy=multi-user.target
 EOF
 
 PUBLIC_BIND_VALUE=$( (grep -E '^PUBLIC_BIND=' "$SCRIPT_DIR/.env" 2>/dev/null || true) | tail -1 | cut -d'=' -f2- | tr '[:upper:]' '[:lower:]')
-PUBLIC_BIND_ENABLED="false"
-case "$PUBLIC_BIND_VALUE" in
-    true|1|yes|on) PUBLIC_BIND_ENABLED="true" ;;
-esac
+if [ -z "$PUBLIC_BIND_VALUE" ]; then
+    PUBLIC_BIND_ENABLED="true"
+else
+    PUBLIC_BIND_ENABLED="false"
+    case "$PUBLIC_BIND_VALUE" in
+        true|1|yes|on) PUBLIC_BIND_ENABLED="true" ;;
+    esac
+fi
 
 echo -e "${BLUE}[+] Reloading systemd...${NC}"
 sudo systemctl daemon-reload
@@ -281,8 +285,7 @@ if [ "$PUBLIC_BIND_ENABLED" = "true" ]; then
     echo -e "${YELLOW}[!] Reminder: this API has no TLS of its own. Put a TLS-terminating reverse${NC}"
     echo -e "${YELLOW}[!] proxy (e.g. Traefik, which Dokploy already runs) in front of it.${NC}"
 else
-    echo -e "${BLUE}[*] PUBLIC_BIND is disabled (default) - API bound to 127.0.0.1, firewall left untouched.${NC}"
-    echo -e "${BLUE}[*] Set PUBLIC_BIND=true in $SCRIPT_DIR/.env (behind a TLS reverse proxy) if remote access is genuinely required.${NC}"
+    echo -e "${BLUE}[*] PUBLIC_BIND=false - API bound to 127.0.0.1, firewall left untouched.${NC}"
 fi
 
 echo -e "${BLUE}[+] Enabling service...${NC}"

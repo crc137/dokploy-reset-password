@@ -291,9 +291,9 @@ class TestSecretHandling:
 
 
 class TestNetworkDefaults:
-    def test_default_host_is_localhost(self, monkeypatch):
+    def test_default_host_is_all_interfaces(self, monkeypatch):
         monkeypatch.delenv('PUBLIC_BIND', raising=False)
-        assert api_server._resolve_host() == '127.0.0.1'
+        assert api_server._resolve_host() == '0.0.0.0'
 
     @pytest.mark.parametrize('value', ['true', '1', 'yes', 'on', 'TRUE'])
     def test_public_bind_opts_in_to_all_interfaces(self, monkeypatch, value):
