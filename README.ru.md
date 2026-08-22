@@ -190,7 +190,19 @@ cd /root/ResetPasswordDeploy
 ./uninstall.sh
 ```
 
-Скрипт останавливает и удаляет systemd-сервис, крон-джобу ежедневной проверки обновлений и закрывает порт API в фаерволе (ufw/firewalld). Затем спрашивает, удалить ли также все файлы в `/root/ResetPasswordDeploy` (venv, скрипты и `.env` с API-ключом). Запустите `./uninstall.sh --yes`, чтобы пропустить вопросы и удалить всё полностью.
+Скрипт останавливает и удаляет systemd-сервис, крон-джобу ежедневной проверки обновлений и закрывает порт API в фаерволе (ufw/firewalld). Затем спрашивает, удалить ли также все файлы в `/root/ResetPasswordDeploy` (venv, скрипты и `.env` с API-ключом). Добавьте `--yes`, чтобы пропустить вопросы и удалить всё полностью.
+
+Однострочники с сервера:
+
+```bash
+# Интерактивно (с вопросами):
+bash <(curl -sSL https://raw.coonlink.com/cloud/dokploy-reset-password/uninstall.sh)
+
+# Полное удаление без вопросов:
+curl -sSL https://raw.coonlink.com/cloud/dokploy-reset-password/uninstall.sh | bash -s -- --yes
+```
+
+Примечание: `curl ... | bash --yes` не сработает — `--yes` попытается разобрать сам curl. Используйте `bash -s -- --yes` (или подстановку процесса), чтобы передать флаги скрипту.
 
 ## Требования
 

@@ -77,8 +77,16 @@ REMOVE_FILES=false
 if [ "$ASSUME_YES" = "true" ]; then
     REMOVE_FILES=true
 elif [ -d "$SCRIPT_DIR" ]; then
+    PROMPT="Delete ALL files in $SCRIPT_DIR (venv, scripts and .env containing the API key)? [y/N]: "
     echo ""
-    read -r -p "Delete ALL files in $SCRIPT_DIR (venv, scripts and .env containing the API key)? [y/N]: " ANSWER || ANSWER=""
+    if [ -t 0 ]; then
+        read -r -p "$PROMPT" ANSWER || ANSWER=""
+    elif [ -r /dev/tty ]; then
+        read -r -p "$PROMPT" ANSWER < /dev/tty || ANSWER=""
+    else
+        ANSWER=""
+        echo -e "${YELLOW}[!] Stdin is not a terminal - skipping confirmation.${NC}"
+    fi
     if [[ "$ANSWER" =~ ^[Yy]$ ]]; then
         REMOVE_FILES=true
     fi
@@ -96,5 +104,6 @@ echo -e "${GREEN}[+] Uninstall complete!${NC}"
 
 if [ "$REMOVE_FILES" != "true" ]; then
     echo -e "${BLUE}[*] Note: virtual environment and files in $SCRIPT_DIR were kept.${NC}"
-    echo -e "${BLUE}[*] Run with --yes or remove the directory manually for a full wipe.${NC}"
+    echo -e "${BLUE}[*] For a full wipe, run again with --yes:${NC}"
+    echo -e "${BLUE}    curl -sSL <uninstall-url> | bash -s -- --yes${NC}"
 fi

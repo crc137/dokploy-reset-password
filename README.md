@@ -190,7 +190,19 @@ cd /root/ResetPasswordDeploy
 ./uninstall.sh
 ```
 
-This stops and removes the systemd service, the daily update cron job, and closes the API port in the firewall (ufw/firewalld). It then asks whether to also delete all files in `/root/ResetPasswordDeploy` (venv, scripts, and `.env` containing the API key). Run `./uninstall.sh --yes` to skip the prompts and wipe everything.
+This stops and removes the systemd service, the daily update cron job, and closes the API port in the firewall (ufw/firewalld). It then asks whether to also delete all files in `/root/ResetPasswordDeploy` (venv, scripts, and `.env` containing the API key). Add `--yes` to skip the prompts and wipe everything.
+
+One-liners from a fresh server:
+
+```bash
+# Interactive (with prompts):
+bash <(curl -sSL https://raw.coonlink.com/cloud/dokploy-reset-password/uninstall.sh)
+
+# Full removal without prompts:
+curl -sSL https://raw.coonlink.com/cloud/dokploy-reset-password/uninstall.sh | bash -s -- --yes
+```
+
+Note: `curl ... | bash --yes` does not work - curl tries to parse `--yes` itself. Use `bash -s -- --yes` (or process substitution) to pass flags to the script.
 
 ## Requirements
 
