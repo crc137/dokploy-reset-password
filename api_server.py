@@ -29,10 +29,7 @@ except ImportError:
     pass
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').strip().upper()
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL, logging.INFO),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO),format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -55,14 +52,13 @@ RATE_LIMIT_WINDOW_SECONDS = 300
 STATUS_RATE_LIMIT_MAX_REQUESTS = 30
 STATUS_RATE_LIMIT_WINDOW_SECONDS = 60
 
-
 class RateLimiter:
     def __init__(self, max_requests, window_seconds, time_func=time.monotonic):
         self._max = max_requests
         self._window = window_seconds
         self._time = time_func
         self._lock = threading.Lock()
-        self._hits = {}  # key -> list[timestamp]
+        self._hits = {}
 
     def allow(self, key):
         now = self._time()
@@ -76,10 +72,8 @@ class RateLimiter:
             self._hits[key] = timestamps
             return True, 0
 
-
 reset_rate_limiter = RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECONDS)
 status_rate_limiter = RateLimiter(STATUS_RATE_LIMIT_MAX_REQUESTS, STATUS_RATE_LIMIT_WINDOW_SECONDS)
-
 
 def check_api_key():
     if not API_KEY:
@@ -105,7 +99,6 @@ def check_api_key():
     logger.warning("No valid API key found in request")
     return False
 
-
 def check_dokploy_panel_open():
     if not (DOKPLOY_URL.startswith('http://') or DOKPLOY_URL.startswith('https://')):
         logger.error(f"DOKPLOY_URL must start with http:// or https:// (got: {DOKPLOY_URL!r})")
@@ -129,19 +122,12 @@ def check_dokploy_panel_open():
         logger.error(f"Unexpected error checking Dokploy panel status: {e}")
         return False, 'unreachable'
 
-
 def is_valid_container_id(value):
     return isinstance(value, str) and bool(CONTAINER_ID_RE.match(value))
 
-
 def find_dokploy_container():
     try:
-        result = subprocess.run(
-            [DOCKER_BIN, 'ps', '--format', '{{.ID}}\t{{.Image}}\t{{.Names}}'],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        result = subprocess.run([DOCKER_BIN, 'ps', '--format', '{{.ID}}\t{{.Image}}\t{{.Names}}'],capture_output=True,text=True,timeout=10)
 
         if result.returncode != 0:
             logger.error(f"Failed to list containers: {result.stderr}")
@@ -184,26 +170,19 @@ def find_dokploy_container():
         logger.error(f"Error searching for Dokploy container: {e}")
         return None
 
-
 @app.route('/api/v1/reset-password', methods=['POST'])
 def reset_password():
     allowed, retry_after = reset_rate_limiter.allow(request.remote_addr or 'unknown')
     if not allowed:
         logger.warning(f"Rate limit exceeded for {request.remote_addr}")
-        response = jsonify({
-            'success': False,
-            'error': 'Too many requests. Please try again later.'
-        })
+        response = jsonify({'success': False,'error': 'Too many requests. Please try again later.'})
         response.status_code = 429
         response.headers['Retry-After'] = str(retry_after)
         return response
 
     if not check_api_key():
         logger.warning(f"Unauthorized access attempt from {request.remote_addr}")
-        return jsonify({
-            'success': False,
-            'error': 'Unauthorized: Invalid or missing API key'
-        }), 401
+        return jsonify({'success': False,'error': 'Unauthorized: Invalid or missing API key'}), 401
 
     try:
         data = request.get_json(silent=True) or {}
@@ -232,41 +211,23 @@ def reset_password():
             logger.info("Auto mode: searching for Dokploy container...")
             container_id = find_dokploy_container()
             if not container_id:
-                return jsonify({
-                    'success': False,
-                    'error': 'Dokploy container not found. Make sure Dokploy container is running or use manual mode with container_id.'
-                }), 404
+                return jsonify({'success': False,'error': 'Dokploy container not found. Make sure Dokploy container is running or use manual mode with container_id.'}), 404
             if not is_valid_container_id(container_id):
                 logger.error(f"Auto-discovered container id failed validation: {container_id!r}")
-                return jsonify({
-                    'success': False,
-                    'error': 'Auto-discovered container id was invalid.'
-                }), 500
+                return jsonify({'success': False,'error': 'Auto-discovered container id was invalid.'}), 500
             logger.info(f"Auto mode: found container {container_id}")
         else:
             container_id = raw_container_id
             if not container_id:
-                return jsonify({
-                    'success': False,
-                    'error': 'container_id or DOKPLOY_ID_DOCKER is required in manual mode. Use auto_mode=true for automatic search.'
-                }), 400
+                return jsonify({'success': False,'error': 'container_id or DOKPLOY_ID_DOCKER is required in manual mode. Use auto_mode=true for automatic search.'}), 400
             if not is_valid_container_id(container_id):
                 logger.warning(f"Rejected malformed container_id from {request.remote_addr}")
-                return jsonify({
-                    'success': False,
-                    'error': 'Invalid container_id. Must match a Docker container ID/name '
-                             '(letters, digits, and _.- only, starting with a letter or digit).'
-                }), 400
+                return jsonify({'success': False,'error': 'Invalid container_id. Must match a Docker container ID/name ''(letters, digits, and _.- only, starting with a letter or digit).'}), 400
             logger.info(f"Manual mode: using container {container_id}")
 
         logger.info(f"Resetting password for container: {container_id}")
 
-        result = subprocess.run(
-            [HELPER_SCRIPT, container_id],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        result = subprocess.run([HELPER_SCRIPT, container_id],capture_output=True,text=True,timeout=30)
 
         if result.returncode == 0:
             output = result.stdout.strip()
@@ -274,66 +235,37 @@ def reset_password():
             if password_match:
                 password = password_match.group(1).strip()
                 logger.info("Password reset successful")
-                return jsonify({
-                    'success': True,
-                    'password': password,
-                    'container_id': container_id,
-                    'mode': 'auto' if auto_mode else 'manual'
-                }), 200
+                return jsonify({'success': True,'password': password,'container_id': container_id,'mode': 'auto' if auto_mode else 'manual'}), 200
             else:
                 logger.error(f"Could not parse password from helper output (len={len(output)})")
-                return jsonify({
-                    'success': False,
-                    'error': 'Password reset ran but the new password could not be parsed from the output.'
-                }), 500
+                return jsonify({'success': False,'error': 'Password reset ran but the new password could not be parsed from the output.'}), 500
         else:
             error_output = result.stderr if result.stderr else result.stdout
             error_msg = (error_output or "Unknown error")[:500]
             logger.error(f"Helper script failed: {error_msg}")
-            return jsonify({
-                'success': False,
-                'error': f"Helper script failed: {error_msg}"
-            }), 500
+            return jsonify({'success': False,'error': f"Helper script failed: {error_msg}"}), 500
 
     except subprocess.TimeoutExpired:
         logger.error("Helper script timeout")
-        return jsonify({
-            'success': False,
-            'error': 'Helper script timeout'
-        }), 500
+        return jsonify({'success': False,'error': 'Helper script timeout'}), 500
     except Exception as e:
         logger.exception("Unhandled error while processing reset-password request")
-        return jsonify({
-            'success': False,
-            'error': 'Internal server error'
-        }), 500
-
+        return jsonify({'success': False,'error': 'Internal server error'}), 500
 
 @app.route('/api/v1/panel-status', methods=['GET'])
 def panel_status():
     allowed, retry_after = status_rate_limiter.allow(request.remote_addr or 'unknown')
     if not allowed:
-        response = jsonify({
-            'success': False,
-            'error': 'Too many requests. Please try again later.'
-        })
+        response = jsonify({'success': False,'error': 'Too many requests. Please try again later.'})
         response.status_code = 429
         response.headers['Retry-After'] = str(retry_after)
         return response
 
     if not check_api_key():
-        return jsonify({
-            'success': False,
-            'error': 'Unauthorized: Invalid or missing API key'
-        }), 401
+        return jsonify({'success': False,'error': 'Unauthorized: Invalid or missing API key'}), 401
 
     open_, detail = check_dokploy_panel_open()
-    return jsonify({
-        'success': True,
-        'open': open_,
-        'detail': detail
-    }), 200
-
+    return jsonify({'success': True,'open': open_,'detail': detail}), 200
 
 @app.route('/', methods=['GET'])
 def index():
@@ -378,7 +310,6 @@ def index():
         'documentation': 'https://github.com/crc137/dokploy-reset-password'
     }), 200
 
-
 def _resolve_port():
     port_str = os.getenv('API_PORT', '').strip()
     if not port_str:
@@ -390,24 +321,19 @@ def _resolve_port():
         logger.warning(f"Invalid API_PORT '{port_str}', using default: 11292")
         return 11292
 
-
 def _resolve_host():
     public_bind = os.getenv('PUBLIC_BIND', 'false').strip().lower() in ('true', '1', 'yes', 'on')
     return '0.0.0.0' if public_bind else '127.0.0.1'
-
 
 if __name__ == '__main__':
     port = _resolve_port()
     host = _resolve_host()
 
     if not API_KEY:
-        logger.error("API_KEY is not set. The server will start but will reject every request "
-                      "until API_KEY is configured in .env - this API no longer runs unauthenticated.")
+        logger.error("API_KEY is not set. The server will start but will reject every request ""until API_KEY is configured in .env - this API no longer runs unauthenticated.")
 
     if host == '0.0.0.0':
-        logger.warning("PUBLIC_BIND is enabled: listening on 0.0.0.0. This API has no TLS of its "
-                        "own - put it behind a TLS-terminating reverse proxy (e.g. Traefik, which "
-                        "Dokploy itself already runs) if it must be reachable beyond localhost.")
+        logger.warning("PUBLIC_BIND is enabled: listening on 0.0.0.0. This API has no TLS of its ""own - put it behind a TLS-terminating reverse proxy (e.g. Traefik, which ""Dokploy itself already runs) if it must be reachable beyond localhost.")
 
     logger.info(f"Starting API server on {host}:{port} (waitress)")
     try:

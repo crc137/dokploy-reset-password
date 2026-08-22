@@ -19,7 +19,6 @@ else
     VERSION="1.2.0"
 fi
 
-
 mkdir -p "$SCRIPT_DIR"
 chmod 700 "$SCRIPT_DIR"
 cd "$SCRIPT_DIR"
@@ -168,7 +167,6 @@ else
     rm -rf "$TEST_VENV_DIR" 2>/dev/null || true
 fi
 
-
 set -euo pipefail
 
 echo -e "${BLUE}[+] Creating virtual environment...${NC}"
@@ -177,7 +175,6 @@ python3 -m venv venv
 echo -e "${BLUE}[+] Installing Python dependencies...${NC}"
 ./venv/bin/pip install --upgrade pip
 ./venv/bin/pip install -r requirements.txt
-
 
 echo -e "${BLUE}[+] Creating systemd service...${NC}"
 
@@ -193,7 +190,6 @@ if [ -z "${API_KEY:-}" ]; then
         echo -e "${YELLOW}[!] IMPORTANT: Save this key! You'll need it in your bot's config.${NC}"
     fi
 fi
-
 
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
     echo -e "${BLUE}[+] Creating .env file from .env.example...${NC}"
