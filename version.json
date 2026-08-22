@@ -1,7 +1,17 @@
 {
-    "install_new_version": "1.1.15",
-    "install_sh_sha256": "b904009264d02add0be4fba852a6a8c7eda524717a1627882b4629230679cfc2",
+    "install_new_version": "1.2.0",
+    "install_sh_sha256": "ded29f637378c9b7b4bc06eedd225fe8082f4d36128a4d92bd1723677d4691ab",
     "changelog": [
+      {
+        "version": "1.2.0",
+        "date": "2026-08-22",
+        "changes": [
+          "Fixed inconsistent version numbers across install.sh, config.sh, version.json and api_server.py that caused the update checker to compare against the wrong current version",
+          "Fixed install.sh's fallback SERVICE_NAME being self-referential (resolved to an empty string) when config.sh was unavailable, which broke systemctl calls during install",
+          "Fixed update.sh using 'local' outside of a function during the clean-install hash re-check step, which raised a bash error and skipped SHA256 verification",
+          "Hardened API key comparison in api_server.py to use a constant-time check (hmac.compare_digest) instead of '==', preventing timing-based key guessing"
+        ]
+      },
       {
         "version": "1.1.15",
         "date": "2025-11-24",

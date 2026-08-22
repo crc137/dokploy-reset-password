@@ -9,14 +9,14 @@ else
     SCRIPT_DIR="/root/ResetPasswordDeploy"
     RAW_BASE_URL="https://raw.coonlink.com/cloud/dokploy-reset-password"
     API_PORT="11292"
-    SERVICE_NAME="${SERVICE_NAME}"
+    SERVICE_NAME="reset-password-api-dokploy"
     SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
     GREEN="\033[0;32m"
     YELLOW="\033[1;33m"
     BLUE="\033[0;34m"
     RED="\033[0;31m"
     NC="\033[0m"
-    VERSION="1.1.19"
+    VERSION="1.2.0"
 fi
 
 

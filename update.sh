@@ -563,7 +563,7 @@ if download_with_retry "\$INSTALL_SCRIPT_URL" "\$INSTALL_NEW"; then
     
     if [ -z "\$expected_hash" ]; then
         log_info "Hash not found in saved version file, downloading from server..."
-        local temp_version="/tmp/version-check.json"
+        temp_version="/tmp/version-check.json"
         if curl -sSLf "\$VERSION_URL" -o "\$temp_version" 2>/dev/null; then
             if command -v python3 &> /dev/null; then
                 expected_hash=\$(python3 -c "import json; data = json.load(open('\$temp_version')); print(data.get('install_sh_sha256', ''))" 2>/dev/null)
