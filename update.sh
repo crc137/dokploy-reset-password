@@ -107,12 +107,7 @@ send_telegram_notification() {
         log_message "WARNING" "Cannot send Telegram notification: TG_TOKEN or TG_ADMIN not set in .env"
         return 1
     fi
-    
-    if [ -z "$TG_TOKEN" ] || [ -z "$TG_ADMIN" ]; then
-        log_message "WARNING" "Cannot send Telegram notification: TG_TOKEN or TG_ADMIN not set in .env"
-        return 1
-    fi
-    
+
     local message_escaped=$(printf '%s\n' "$message" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
     
     local response=$(curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
