@@ -21,7 +21,7 @@ fi
 
 
 mkdir -p "$SCRIPT_DIR"
-chmod 777 "$SCRIPT_DIR"
+chmod 700 "$SCRIPT_DIR"
 cd "$SCRIPT_DIR"
 
 echo -e "${BLUE}[*] Installing Reset Password API Server (version ${GREEN}${VERSION}${BLUE})...${NC}"
@@ -219,6 +219,8 @@ if ! grep -q "^API_PORT=${API_PORT}" "$SCRIPT_DIR/.env" 2>/dev/null; then
         sed -i "s/^API_PORT=.*/API_PORT=${API_PORT}/" "$SCRIPT_DIR/.env"
     fi
 fi
+
+chmod 600 "$SCRIPT_DIR/.env"
 
 sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]

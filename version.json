@@ -1,6 +1,6 @@
 {
     "install_new_version": "1.2.0",
-    "install_sh_sha256": "ded29f637378c9b7b4bc06eedd225fe8082f4d36128a4d92bd1723677d4691ab",
+    "install_sh_sha256": "7129d73edb69e870c6b055c3ab3a40aa5318efbf198f5d6fddd1222fab1405da",
     "changelog": [
       {
         "version": "1.2.0",
@@ -9,7 +9,9 @@
           "Fixed inconsistent version numbers across install.sh, config.sh, version.json and api_server.py that caused the update checker to compare against the wrong current version",
           "Fixed install.sh's fallback SERVICE_NAME being self-referential (resolved to an empty string) when config.sh was unavailable, which broke systemctl calls during install",
           "Fixed update.sh using 'local' outside of a function during the clean-install hash re-check step, which raised a bash error and skipped SHA256 verification",
-          "Hardened API key comparison in api_server.py to use a constant-time check (hmac.compare_digest) instead of '==', preventing timing-based key guessing"
+          "Hardened API key comparison in api_server.py to use a constant-time check (hmac.compare_digest) instead of '==', preventing timing-based key guessing",
+          "Fixed install.sh making the deployment directory world-writable (chmod 777); it is now owner-only (700), and .env is locked to 600 - closes a local privilege-escalation path since the API server and update scripts in that directory run as root via systemd and cron",
+          "Removed logging of partial API key values on authentication failures to stop secret material from leaking into logs"
         ]
       },
       {

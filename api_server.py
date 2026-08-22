@@ -45,24 +45,21 @@ def check_api_key():
     
     auth_header = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
     if auth_header:
-        logger.info(f"Received API key from header: {auth_header[:20]}... (length: {len(auth_header)})")
-        logger.info(f"Expected API key: {API_KEY[:20]}... (length: {len(API_KEY)})")
         if hmac.compare_digest(auth_header, API_KEY):
             logger.info("API key verified from header")
             return True
         else:
-            logger.warning(f"API key mismatch. Received: {auth_header[:20]}..., Expected: {API_KEY[:20]}...")
-    
+            logger.warning(f"API key mismatch from header (length: {len(auth_header)})")
+
     if request.is_json:
         data = request.get_json() or {}
         api_key_from_body = data.get('api_key')
-        if api_key_from_body:
-            logger.info(f"Received API key from body: {api_key_from_body[:20]}... (length: {len(api_key_from_body)})")
+        if isinstance(api_key_from_body, str) and api_key_from_body:
             if hmac.compare_digest(api_key_from_body, API_KEY):
                 logger.info("API key verified from body")
                 return True
             else:
-                logger.warning(f"API key mismatch from body. Received: {api_key_from_body[:20]}...")
+                logger.warning(f"API key mismatch from body (length: {len(api_key_from_body)})")
     
     logger.warning("No valid API key found in request")
     return False
