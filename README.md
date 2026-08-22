@@ -10,7 +10,7 @@
 <img alt="last-commit" src="https://img.shields.io/github/last-commit/crc137/dokploy-reset-password?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-top-language" src="https://img.shields.io/github/languages/top/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-language-count" src="https://img.shields.io/github/languages/count/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
-<img alt="version" src="https://img.shields.io/badge/version-1.2.1-blue" style="margin: 0px 2px;">
+<img alt="version" src="https://img.shields.io/badge/version-1.2.2-blue" style="margin: 0px 2px;">
 </div>
 
 <br />
@@ -183,6 +183,20 @@ The system includes an automatic update mechanism that checks for new versions d
 tail -f /root/ResetPasswordDeploy/update.log
 ```
 
+## Daily Password Reset with Telegram Notification
+
+If `TG_TOKEN` and `TG_ADMIN` are set in `.env`, the service can automatically reset the Dokploy admin password every day and send the new password to Telegram.
+
+To avoid flooding the chat, the script **edits the same message every time**: the message ID is stored in the `tg_password_message_id` file, and each subsequent reset updates that exact message (if the message was deleted, a new one is sent and its ID is stored again).
+
+- Enable/disable: `TG_DAILY_PASSWORD=true/false` in `.env` (default: `true`)
+- Schedule: daily at 3:30 AM (cron)
+- Log: `tail -f /root/ResetPasswordDeploy/password.log`
+- Manual run: `/root/ResetPasswordDeploy/daily-password.sh`
+- State file: `/root/ResetPasswordDeploy/tg_password_message_id`
+
+> [!WARNING]
+> The password is sent to Telegram in plain text. Use a private chat with your bot and do not forward this message.
 ## Uninstall
 
 ```bash

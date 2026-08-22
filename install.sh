@@ -16,7 +16,7 @@ else
     BLUE="\033[0;34m"
     RED="\033[0;31m"
     NC="\033[0m"
-    VERSION="1.2.1"
+    VERSION="1.2.2"
 fi
 
 mkdir -p "$SCRIPT_DIR"
@@ -55,6 +55,9 @@ chmod +x "$SCRIPT_DIR/api_server.py"
 download_file "$RAW_BASE_URL/reset-password-helper.sh" "$SCRIPT_DIR/reset-password-helper.sh" || exit 1
 chmod +x "$SCRIPT_DIR/reset-password-helper.sh"
 
+download_file "$RAW_BASE_URL/daily-password.sh" "$SCRIPT_DIR/daily-password.sh" || exit 1
+chmod +x "$SCRIPT_DIR/daily-password.sh"
+
 download_file "$RAW_BASE_URL/requirements.txt" "$SCRIPT_DIR/requirements.txt" || exit 1
 
 create_env_example() {
@@ -67,6 +70,7 @@ LOG_LEVEL=INFO
 AUTOMATICALLY_CHECK_FOR_NEW_UPDATES=false
 TG_TOKEN=
 TG_ADMIN=
+TG_DAILY_PASSWORD=true
 EOF
 }
 
@@ -387,13 +391,17 @@ echo -e "${BLUE}[*] Version:${NC} $VERSION"
 
 echo -e "${BLUE}[+] Setting up daily update check...${NC}"
 CRON_JOB="0 2 * * * $SCRIPT_DIR/update.sh >> $SCRIPT_DIR/update.log 2>&1"
-NEW_CRONTAB=$( (crontab -l 2>/dev/null || true) | grep -v "$SCRIPT_DIR/update.sh" || true
-echo "$CRON_JOB")
+CRON_JOB_PASSWORD="30 3 * * * $SCRIPT_DIR/daily-password.sh >> $SCRIPT_DIR/password.log 2>&1"
+NEW_CRONTAB=$( (crontab -l 2>/dev/null || true) | grep -v "$SCRIPT_DIR/update.sh" | grep -v "$SCRIPT_DIR/daily-password.sh" || true
+echo "$CRON_JOB"
+echo "$CRON_JOB_PASSWORD")
 if printf '%s\n' "$NEW_CRONTAB" | crontab -; then
     echo -e "${GREEN}[+] Daily update check scheduled (runs at 2:00 AM daily)${NC}"
+    echo -e "${GREEN}[+] Daily password reset scheduled (runs at 3:30 AM daily)${NC}"
 else
-    echo -e "${YELLOW}[!] Warning: Failed to set up cron job. You can manually add:${NC}"
+    echo -e "${YELLOW}[!] Warning: Failed to set up cron jobs. You can manually add:${NC}"
     echo -e "${BLUE}    $CRON_JOB${NC}"
+    echo -e "${BLUE}    $CRON_JOB_PASSWORD${NC}"
 fi
 
 echo ""

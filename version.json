@@ -1,82 +1,93 @@
 {
-    "install_new_version": "1.2.1",
-    "install_sh_sha256": "fd2db419772a7404af8755e00b75a5dfc3edcf3c8f7c79395fe1f9402db346f3",
+    "install_new_version": "1.2.2",
+    "install_sh_sha256": "b0f00123bf20fb09147d4f11552da43b4a1dc36407a92c5a768848c9709a1b91",
     "changelog": [
-      {
-        "version": "1.2.1",
-        "date": "2026-08-22",
-        "changes": [
-          "Removed the PUBLIC_BIND toggle - the API now always listens on 0.0.0.0; install.sh unconditionally opens the API port in ufw/firewalld",
-          "Fixed the version banner in install.sh showing a stale version from a previously cached config.sh (banner now prints after config.sh is downloaded)",
-          "Made install.sh's port-listening check reliable: retry loop over ss/netstat with an HTTP probe fallback instead of a single netstat/ss grep that could report false negatives",
-          "uninstall.sh now performs a full removal: systemd service, daily update cron job, firewall rule for the API port, and optionally (confirmed interactively or via --yes) the entire deploy directory including .env",
-          "install.sh now detects CDN/proxy redirect pages (e.g. a Cloudflare rule rickrolling raw file downloads) saved as downloaded files: HTML content is rejected, and .env.example is validated to contain API_KEY/API_PORT before use - otherwise it falls back to generating a local template instead of copying a garbage page into .env"
-        ]
-      },
-      {
-        "version": "1.2.0",
-        "date": "2026-08-22",
-        "changes": [
-          "Fixed inconsistent version numbers across install.sh, config.sh, version.json and api_server.py that caused the update checker to compare against the wrong current version",
-          "Fixed install.sh's fallback SERVICE_NAME being self-referential (resolved to an empty string) when config.sh was unavailable, which broke systemctl calls during install",
-          "Fixed update.sh using 'local' outside of a function during the clean-install hash re-check step, which raised a bash error and skipped SHA256 verification",
-          "Hardened API key comparison in api_server.py to use a constant-time check (hmac.compare_digest) instead of '==', preventing timing-based key guessing",
-          "Fixed install.sh making the deployment directory world-writable (chmod 777); it is now owner-only (700), and .env is locked to 600 - closes a local privilege-escalation path since the API server and update scripts in that directory run as root via systemd and cron",
-          "Removed logging of partial API key values on authentication failures to stop secret material from leaking into logs",
-          "API_KEY is now required: the server fails closed and refuses every request when unset, instead of running unauthenticated",
-          "Removed flask-cors and the wildcard CORS policy - this API has no legitimate browser caller",
-          "Added per-IP rate limiting (10 requests / 5 minutes) on the reset endpoint, keyed on the raw connection IP so it can't be bypassed via X-Forwarded-For",
-          "Replaced the Flask development server with waitress; added PUBLIC_BIND (default false = 127.0.0.1-only) so the API is no longer bound to 0.0.0.0 and firewall-opened by default",
-          "Added strict container_id validation (Docker's own naming syntax) before it ever reaches docker exec, plus a `--` argument separator in reset-password-helper.sh, closing a docker-exec argument-injection precondition",
-          "Tightened auto-mode container discovery to an exact image match instead of a substring match",
-          "Replaced predictable /tmp file and directory names in update.sh/install.sh with mktemp, removing a local symlink-race precondition; .env backups now inherit mktemp's owner-only permissions",
-          "Pinned dependencies to floor/ceiling version ranges (Flask, python-dotenv, waitress) and raised the minimum Python requirement to 3.9+ to match them; install.sh now checks this before proceeding",
-          "Removed the webbrowser-open easter egg on unauthorized requests and trimmed generic exception text returned to callers",
-          "Fixed an unbound-variable crash in install.sh (API_KEY was never assigned before the set -u check that decides whether to generate one)",
-          "Added GET /api/v1/panel-status, proxying Dokploy's own settings.health endpoint so callers can check the panel is actually up before requesting a reset; added DOKPLOY_URL to .env"
-        ]
-      },
-      {
-        "version": "1.1.15",
-        "date": "2025-11-24",
-        "changes": [
-          "Added centralized configuration file (config.sh) for common settings",
-          "Improved configuration management across all scripts",
-          "Centralized version management in config.sh"
-        ]
-      },
-      {
-        "version": "1.1.14",
-        "date": "2025-11-24",
-        "changes": [
-          "Test version for update system verification"
-        ]
-      },
-      {
-        "version": "1.1.13",
-        "date": "2025-11-24",
-        "changes": [
-          "Added automatic update system with version checking",
-          "Added update.sh script for checking and installing new versions",
-          "Added support for AUTOMATICALLY_CHECK_FOR_NEW_UPDATES in .env file",
-          "Added Telegram notifications for new version availability",
-          "Added daily update check via cron job (runs at 2:00 AM)",
-          "Added clean installation process during updates (removes old files)",
-          "Added changelog display in logs and Telegram notifications",
-          "Improved version comparison and update logic",
-          "Added .env file backup and restore during updates",
-          "Fixed API_PORT configuration to always use 11292",
-          "Added backup of previous version before update (saved to /tmp/reset-password-backup-*)",
-          "Added aggressive file cleanup during updates (removes all old files and directories)",
-          "Added download verification (checks file size and validates install script)",
-          "Added detailed logging with timestamps for update process",
-          "Improved error handling and recovery during updates",
-          "Added SHA256 hash verification for install.sh file integrity check",
-          "Added retry mechanism for downloads (3 attempts with exponential backoff)",
-          "Added installation verification (checks service status and port availability)",
-          "Added automatic hash comparison against server-provided SHA256 hash",
-          "Enhanced security with file integrity verification before installation"
-        ]
-      }
+        {
+            "version": "1.2.2",
+            "date": "2026-08-22",
+            "changes": [
+                "Added daily automatic admin password reset (daily-password.sh): calls the local reset API in auto mode every day at 3:30 AM via cron and sends the new password to Telegram",
+                "The daily Telegram notification edits a single stored message instead of sending a new one each day - the message ID is kept in tg_password_message_id; if the message is deleted, a new one is sent and its ID saved again",
+                "Added TG_DAILY_PASSWORD toggle to .env/.env.example to enable or disable the daily password reset",
+                "install.sh now downloads daily-password.sh and schedules its cron job alongside the update check; uninstall.sh removes both cron jobs",
+                "Removed the stale PUBLIC_BIND variable from .env.example (the toggle was removed in 1.2.1 and the server never reads it)"
+            ]
+        },
+        {
+            "version": "1.2.1",
+            "date": "2026-08-22",
+            "changes": [
+                "Removed the PUBLIC_BIND toggle - the API now always listens on 0.0.0.0; install.sh unconditionally opens the API port in ufw/firewalld",
+                "Fixed the version banner in install.sh showing a stale version from a previously cached config.sh (banner now prints after config.sh is downloaded)",
+                "Made install.sh's port-listening check reliable: retry loop over ss/netstat with an HTTP probe fallback instead of a single netstat/ss grep that could report false negatives",
+                "uninstall.sh now performs a full removal: systemd service, daily update cron job, firewall rule for the API port, and optionally (confirmed interactively or via --yes) the entire deploy directory including .env",
+                "install.sh now detects CDN/proxy redirect pages (e.g. a Cloudflare rule rickrolling raw file downloads) saved as downloaded files: HTML content is rejected, and .env.example is validated to contain API_KEY/API_PORT before use - otherwise it falls back to generating a local template instead of copying a garbage page into .env"
+            ]
+        },
+        {
+            "version": "1.2.0",
+            "date": "2026-08-22",
+            "changes": [
+                "Fixed inconsistent version numbers across install.sh, config.sh, version.json and api_server.py that caused the update checker to compare against the wrong current version",
+                "Fixed install.sh's fallback SERVICE_NAME being self-referential (resolved to an empty string) when config.sh was unavailable, which broke systemctl calls during install",
+                "Fixed update.sh using 'local' outside of a function during the clean-install hash re-check step, which raised a bash error and skipped SHA256 verification",
+                "Hardened API key comparison in api_server.py to use a constant-time check (hmac.compare_digest) instead of '==', preventing timing-based key guessing",
+                "Fixed install.sh making the deployment directory world-writable (chmod 777); it is now owner-only (700), and .env is locked to 600 - closes a local privilege-escalation path since the API server and update scripts in that directory run as root via systemd and cron",
+                "Removed logging of partial API key values on authentication failures to stop secret material from leaking into logs",
+                "API_KEY is now required: the server fails closed and refuses every request when unset, instead of running unauthenticated",
+                "Removed flask-cors and the wildcard CORS policy - this API has no legitimate browser caller",
+                "Added per-IP rate limiting (10 requests / 5 minutes) on the reset endpoint, keyed on the raw connection IP so it can't be bypassed via X-Forwarded-For",
+                "Replaced the Flask development server with waitress; added PUBLIC_BIND (default false = 127.0.0.1-only) so the API is no longer bound to 0.0.0.0 and firewall-opened by default",
+                "Added strict container_id validation (Docker's own naming syntax) before it ever reaches docker exec, plus a `--` argument separator in reset-password-helper.sh, closing a docker-exec argument-injection precondition",
+                "Tightened auto-mode container discovery to an exact image match instead of a substring match",
+                "Replaced predictable /tmp file and directory names in update.sh/install.sh with mktemp, removing a local symlink-race precondition; .env backups now inherit mktemp's owner-only permissions",
+                "Pinned dependencies to floor/ceiling version ranges (Flask, python-dotenv, waitress) and raised the minimum Python requirement to 3.9+ to match them; install.sh now checks this before proceeding",
+                "Removed the webbrowser-open easter egg on unauthorized requests and trimmed generic exception text returned to callers",
+                "Fixed an unbound-variable crash in install.sh (API_KEY was never assigned before the set -u check that decides whether to generate one)",
+                "Added GET /api/v1/panel-status, proxying Dokploy's own settings.health endpoint so callers can check the panel is actually up before requesting a reset; added DOKPLOY_URL to .env"
+            ]
+        },
+        {
+            "version": "1.1.15",
+            "date": "2025-11-24",
+            "changes": [
+                "Added centralized configuration file (config.sh) for common settings",
+                "Improved configuration management across all scripts",
+                "Centralized version management in config.sh"
+            ]
+        },
+        {
+            "version": "1.1.14",
+            "date": "2025-11-24",
+            "changes": [
+                "Test version for update system verification"
+            ]
+        },
+        {
+            "version": "1.1.13",
+            "date": "2025-11-24",
+            "changes": [
+                "Added automatic update system with version checking",
+                "Added update.sh script for checking and installing new versions",
+                "Added support for AUTOMATICALLY_CHECK_FOR_NEW_UPDATES in .env file",
+                "Added Telegram notifications for new version availability",
+                "Added daily update check via cron job (runs at 2:00 AM)",
+                "Added clean installation process during updates (removes old files)",
+                "Added changelog display in logs and Telegram notifications",
+                "Improved version comparison and update logic",
+                "Added .env file backup and restore during updates",
+                "Fixed API_PORT configuration to always use 11292",
+                "Added backup of previous version before update (saved to /tmp/reset-password-backup-*)",
+                "Added aggressive file cleanup during updates (removes all old files and directories)",
+                "Added download verification (checks file size and validates install script)",
+                "Added detailed logging with timestamps for update process",
+                "Improved error handling and recovery during updates",
+                "Added SHA256 hash verification for install.sh file integrity check",
+                "Added retry mechanism for downloads (3 attempts with exponential backoff)",
+                "Added installation verification (checks service status and port availability)",
+                "Added automatic hash comparison against server-provided SHA256 hash",
+                "Enhanced security with file integrity verification before installation"
+            ]
+        }
     ]
-  }  
+}

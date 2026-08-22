@@ -10,7 +10,7 @@
 <img alt="last-commit" src="https://img.shields.io/github/last-commit/crc137/dokploy-reset-password?style=flat&amp;logo=git&amp;logoColor=white&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-top-language" src="https://img.shields.io/github/languages/top/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
 <img alt="repo-language-count" src="https://img.shields.io/github/languages/count/crc137/dokploy-reset-password?style=flat&amp;color=0080ff" style="margin: 0px 2px;">
-<img alt="version" src="https://img.shields.io/badge/version-1.2.1-blue" style="margin: 0px 2px;">
+<img alt="version" src="https://img.shields.io/badge/version-1.2.2-blue" style="margin: 0px 2px;">
 </div>
 
 <br />
@@ -183,6 +183,20 @@ sudo systemctl restart reset-password-api-dokploy
 tail -f /root/ResetPasswordDeploy/update.log
 ```
 
+## Ежедневный сброс пароля с уведомлением в Telegram
+
+Если в `.env` заданы `TG_TOKEN` и `TG_ADMIN`, сервис может автоматически сбрасывать пароль администратора Dokploy каждый день и присылать новый пароль в Telegram.
+
+Чтобы не засорять чат, скрипт **редактирует одно и то же сообщение**: ID сообщения сохраняется в файле `tg_password_message_id`, и при каждом следующем сбросе обновляется текст именно этого сообщения (если сообщение удалено - будет отправлено новое, и его ID снова сохранится).
+
+- Включение/выключение: `TG_DAILY_PASSWORD=true/false` в `.env` (по умолчанию `true`)
+- Расписание: ежедневно в 3:30 ночи (cron)
+- Лог: `tail -f /root/ResetPasswordDeploy/password.log`
+- Ручной запуск: `/root/ResetPasswordDeploy/daily-password.sh`
+- Файл состояния: `/root/ResetPasswordDeploy/tg_password_message_id`
+
+> [!WARNING]
+> Пароль отправляется в Telegram в открытом виде. Используйте приватный чат с ботом и не пересылайте это сообщение.
 ## Удаление
 
 ```bash

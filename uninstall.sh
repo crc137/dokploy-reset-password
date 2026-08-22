@@ -55,9 +55,9 @@ if [ -f "$SERVICE_FILE" ]; then
     sudo systemctl daemon-reload
 fi
 
-if crontab -l 2>/dev/null | grep -qF "$SCRIPT_DIR/update.sh"; then
-    echo -e "${YELLOW}[-] Removing daily update check cron job...${NC}"
-    (crontab -l 2>/dev/null | grep -vF "$SCRIPT_DIR/update.sh" || true) | crontab -
+if crontab -l 2>/dev/null | grep -qE "$SCRIPT_DIR/(update|daily-password)\.sh"; then
+    echo -e "${YELLOW}[-] Removing scheduled cron jobs (daily update check + daily password reset)...${NC}"
+    (crontab -l 2>/dev/null | grep -vE "$SCRIPT_DIR/(update|daily-password)\.sh" || true) | crontab -
 fi
 
 if command -v ufw &> /dev/null && sudo ufw status 2>/dev/null | grep -q "${API_PORT}/tcp"; then
