@@ -194,9 +194,15 @@ fi
 if [ ! -f "$SCRIPT_DIR/.env" ]; then
     echo -e "${BLUE}[+] Creating .env file from .env.example...${NC}"
     cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
+
     if [ -n "$API_KEY" ]; then
-        sed -i "s/^API_KEY=$/API_KEY=${API_KEY}/" "$SCRIPT_DIR/.env"
+        if ! grep -q "^API_KEY=" "$SCRIPT_DIR/.env" 2>/dev/null; then
+            echo "API_KEY=${API_KEY}" >> "$SCRIPT_DIR/.env"
+        else
+            sed -i "s/^API_KEY=.*/API_KEY=${API_KEY}/" "$SCRIPT_DIR/.env"
+        fi
     fi
+
     if ! grep -q "^API_PORT=" "$SCRIPT_DIR/.env" 2>/dev/null; then
         echo "API_PORT=${API_PORT}" >> "$SCRIPT_DIR/.env"
     else
