@@ -190,6 +190,8 @@ cd /root/ResetPasswordDeploy
 ./uninstall.sh
 ```
 
+This stops and removes the systemd service, the daily update cron job, and closes the API port in the firewall (ufw/firewalld). It then asks whether to also delete all files in `/root/ResetPasswordDeploy` (venv, scripts, and `.env` containing the API key). Run `./uninstall.sh --yes` to skip the prompts and wipe everything.
+
 ## Requirements
 
 - Python 3.9+ (required by Flask 3.x and waitress; `install.sh` checks this and refuses to proceed on an older Python)

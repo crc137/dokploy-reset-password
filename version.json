@@ -8,7 +8,8 @@
         "changes": [
           "Removed the PUBLIC_BIND toggle - the API now always listens on 0.0.0.0; install.sh unconditionally opens the API port in ufw/firewalld",
           "Fixed the version banner in install.sh showing a stale version from a previously cached config.sh (banner now prints after config.sh is downloaded)",
-          "Made install.sh's port-listening check reliable: retry loop over ss/netstat with an HTTP probe fallback instead of a single netstat/ss grep that could report false negatives"
+          "Made install.sh's port-listening check reliable: retry loop over ss/netstat with an HTTP probe fallback instead of a single netstat/ss grep that could report false negatives",
+          "uninstall.sh now performs a full removal: systemd service, daily update cron job, firewall rule for the API port, and optionally (confirmed interactively or via --yes) the entire deploy directory including .env"
         ]
       },
       {
