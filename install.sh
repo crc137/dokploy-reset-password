@@ -180,7 +180,7 @@ echo -e "${BLUE}[+] Installing Python dependencies...${NC}"
 
 echo -e "${BLUE}[+] Creating systemd service...${NC}"
 
-if [ -z "$API_KEY" ]; then
+if [ -z "${API_KEY:-}" ]; then
     API_KEY=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "")
     if [ -z "$API_KEY" ]; then
         echo -e "${YELLOW}[!] Warning: Could not generate API key automatically.${NC}"
