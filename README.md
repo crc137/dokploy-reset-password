@@ -59,7 +59,7 @@ TG_TOKEN=
 TG_ADMIN=
 ```
 
-# Environment Variables
+## Environment Variables
 
 Create a local env file before running containers:
 
