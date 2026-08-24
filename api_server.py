@@ -36,19 +36,15 @@ app = Flask(__name__)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HELPER_SCRIPT = os.path.join(SCRIPT_DIR, 'reset-password-helper.sh')
-
 DOCKER_BIN = shutil.which('docker') or 'docker'
-
 API_KEY = os.getenv('API_KEY', '').strip()
+API_KEY_DOKPLOY = os.getenv('API_KEY_DOKPLOY', '').strip()
 AUTO_MODE = os.getenv('AUTO_MODE', 'false').strip().lower() in ('true', '1', 'yes', 'on')
 DOKPLOY_URL = os.getenv('DOKPLOY_URL', 'http://127.0.0.1:3000').strip().rstrip('/')
 DOKPLOY_HEALTH_TIMEOUT = 5
-
 CONTAINER_ID_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$')
-
 RATE_LIMIT_MAX_REQUESTS = 10
 RATE_LIMIT_WINDOW_SECONDS = 300
-
 STATUS_RATE_LIMIT_MAX_REQUESTS = 30
 STATUS_RATE_LIMIT_WINDOW_SECONDS = 60
 
@@ -106,7 +102,8 @@ def check_dokploy_panel_open():
 
     url = f"{DOKPLOY_URL}/api/settings.health"
     try:
-        req = urllib.request.Request(url, method='GET')
+        headers = {'x-api-key': API_KEY_DOKPLOY} if API_KEY_DOKPLOY else {}
+        req = urllib.request.Request(url, method='GET', headers=headers)
         with urllib.request.urlopen(req, timeout=DOKPLOY_HEALTH_TIMEOUT) as resp:
             if resp.status != 200:
                 return False, f"unhealthy (HTTP {resp.status})"
