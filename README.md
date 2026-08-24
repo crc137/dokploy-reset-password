@@ -59,6 +59,14 @@ TG_TOKEN=
 TG_ADMIN=
 ```
 
+# Environment Variables
+
+Create a local env file before running containers:
+
+```bash
+cp .env.example .env
+```
+
 Edit `.env` and restart the service to apply changes:
 
 ```bash
